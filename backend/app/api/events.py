@@ -1,3 +1,13 @@
+"""HTTP endpoints (routes) that the frontend calls.
+
+These are REST API endpoints:
+  GET  /api/events      -- returns a JSON list of events
+  GET  /api/categories   -- returns a JSON list of categories
+  POST /api/events/run-scrape -- triggers the scraper and returns a summary
+
+FastAPI automatically generates interactive docs at /docs.
+"""
+
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query

@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 import time
+from pathlib import Path
+
+# Ensure backend root is on path so "app" can be imported
+_backend_root = Path(__file__).resolve().parent.parent
+if str(_backend_root) not in sys.path:
+    sys.path.insert(0, str(_backend_root))
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -45,7 +52,7 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
-    if args.mode == "scheduler" and settings.scheduler_enabled:
+    if args.mode == "scheduler":
         run_scheduler()
     else:
         scrape_once()

@@ -1,3 +1,13 @@
+"""Database table definitions (ORM models).
+
+Each class below becomes a table in PostgreSQL.  SQLAlchemy (the ORM) maps
+Python objects to database rows, so you never need to write raw SQL.
+
+  Category  -- event categories like "music" or "sports"
+  Source    -- websites we scrape (Klook, Time Out, ...)
+  Event     -- a single event with title, date, location, etc.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

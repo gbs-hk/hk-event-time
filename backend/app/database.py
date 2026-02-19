@@ -20,3 +20,9 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def init_db() -> None:
+    """Create all tables from SQLAlchemy models. Run once for a new database."""
+    from app import models  # noqa: F401
+    Base.metadata.create_all(bind=engine)

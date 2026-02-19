@@ -1,3 +1,14 @@
+/**
+ * Main page of the website.
+ *
+ * This is a React component that:
+ *  1. Loads categories and events from the backend API when the page opens.
+ *  2. Lets users filter events by category (the coloured pill buttons).
+ *  3. Renders the calendar and a side drawer with event details.
+ *
+ * "use client" tells Next.js this component runs in the browser (not on the
+ * server) because it uses React hooks like useState and useEffect.
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";

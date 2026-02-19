@@ -1,3 +1,14 @@
+/**
+ * API client -- functions that call the backend REST API.
+ *
+ * The frontend never talks to the database directly.  Instead it sends HTTP
+ * requests (fetch) to the FastAPI backend, which returns JSON.  Each function
+ * here wraps one API call:
+ *
+ *   fetchCategories()  -> GET  /api/categories
+ *   fetchEvents()      -> GET  /api/events
+ *   triggerScrape()    -> POST /api/events/run-scrape
+ */
 import { Category, EventItem } from "@/types/event";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";

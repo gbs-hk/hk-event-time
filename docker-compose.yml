@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: hk-events-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hk_events
+    ports:
+      - "5432:5432"
+    volumes:
+      - hk-events-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hk_events"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  hk-events-db-data:
