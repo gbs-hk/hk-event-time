@@ -18,3 +18,12 @@ class Config:
         for value in os.getenv("SCRAPE_FOCUS_CATEGORIES", "party,music").split(",")
         if value.strip()
     )
+
+    @classmethod
+    def normalized_database_url(cls) -> str:
+        url = cls.DATABASE_URL.strip()
+        if url.startswith("postgres://"):
+            return "postgresql+psycopg://" + url[len("postgres://") :]
+        if url.startswith("postgresql://") and "+psycopg" not in url:
+            return url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return url

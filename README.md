@@ -18,6 +18,7 @@ This project scrapes selected Hong Kong event sources, classifies events automat
 
 - Python 3.10 or newer
 - `git`
+- PostgreSQL is optional for local development and recommended for Azure deployment
 
 ## Clone and install
 
@@ -80,6 +81,41 @@ Example:
 ```bash
 SCRAPE_SOURCE_MODE=all SCRAPE_FOCUS_CATEGORIES=party,music,food python run.py
 ```
+
+Database examples:
+
+Local SQLite:
+
+```bash
+DATABASE_URL=sqlite:///events.db
+```
+
+PostgreSQL:
+
+```bash
+DATABASE_URL=postgresql+psycopg://user:password@host:5432/dbname
+```
+
+Azure Database for PostgreSQL:
+
+```bash
+DATABASE_URL=postgresql+psycopg://username:password@your-server.postgres.database.azure.com:5432/dbname?sslmode=require
+```
+
+The app also accepts older `postgres://...` style URLs and normalizes them automatically.
+
+## Azure deployment notes
+
+For Azure, PostgreSQL is the better choice than SQLite because it supports multi-user access, persistent hosted storage, and production deployment more reliably.
+
+Typical Azure flow:
+
+```bash
+export DATABASE_URL="postgresql+psycopg://username:password@your-server.postgres.database.azure.com:5432/dbname?sslmode=require"
+python run.py
+```
+
+When deploying to Azure App Service or another hosted environment, set `DATABASE_URL` as an application setting instead of hardcoding it in the codebase.
 
 ## API endpoints
 

@@ -47,6 +47,7 @@ def create_app() -> Flask:
 
         rows = query_events(start_utc=start_utc, end_utc=end_utc, categories=category_filter)
         color_map = get_color_map()
+        category_meta = {item["slug"]: item for item in categories_for_api()}
 
         payload = [
             {
@@ -57,6 +58,7 @@ def create_app() -> Flask:
                 "end": utc_naive_to_hk_iso(row.end_time_utc) if row.end_time_utc else None,
                 "backgroundColor": color_map.get(row.category, "#6d7380"),
                 "borderColor": color_map.get(row.category, "#6d7380"),
+                "textColor": category_meta.get(row.category, {}).get("text_color", "#ffffff"),
                 "extendedProps": {
                     "description": row.description,
                     "source_name": row.source_name,

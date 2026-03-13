@@ -2,7 +2,6 @@ const categoryFiltersEl = document.getElementById("categoryFilters");
 const scrapeButton = document.getElementById("scrapeButton");
 const dialog = document.getElementById("eventDialog");
 const closeDialogButton = document.getElementById("closeDialog");
-const emptyState = document.getElementById("emptyState");
 const calendarStatus = document.getElementById("calendarStatus");
 const viewRangeLabel = document.getElementById("viewRangeLabel");
 
@@ -143,15 +142,14 @@ function updateViewSummary() {
   viewRangeLabel.textContent = `${shortDateFormatter.format(start)} to ${shortDateFormatter.format(end)}`;
 }
 
-function updateCalendarStatus(message, isEmpty) {
+function updateCalendarStatus(message) {
   calendarStatus.textContent = message;
-  emptyState.hidden = !isEmpty;
 }
 
 scrapeButton.addEventListener("click", async () => {
   scrapeButton.disabled = true;
   scrapeButton.textContent = "Refreshing...";
-  updateCalendarStatus("Refreshing source listings...", false);
+  updateCalendarStatus("Refreshing source listings...");
   try {
     await fetch("/api/scrape-now", { method: "POST" });
     calendar.refetchEvents();
@@ -196,7 +194,7 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
   titleFormat: { year: "numeric", month: "long" },
   datesSet: () => {
     updateViewSummary();
-    updateCalendarStatus("Loading events for this view...", false);
+    updateCalendarStatus("Loading events for this view...");
   },
   eventSources: [
     {
@@ -206,12 +204,12 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
           const events = await response.json();
           successCallback(events);
           if (events.length === 0) {
-            updateCalendarStatus("No events landed in this date range yet.", true);
+            updateCalendarStatus("No events landed in this date range yet.");
           } else {
-            updateCalendarStatus(`${events.length} event${events.length === 1 ? "" : "s"} in this view`, false);
+            updateCalendarStatus(`${events.length} event${events.length === 1 ? "" : "s"} in this view`);
           }
         } catch (error) {
-          updateCalendarStatus("Could not load events right now.", true);
+          updateCalendarStatus("Could not load events right now.");
           failureCallback(error);
         }
       },

@@ -8,6 +8,7 @@ from typing import Dict, Iterable
 class CategoryConfig:
     label: str
     color: str
+    text_color: str
     keywords: tuple[str, ...]
     priority: int
 
@@ -15,21 +16,47 @@ class CategoryConfig:
 CATEGORY_DEFINITIONS: Dict[str, CategoryConfig] = {
     "music": CategoryConfig(
         "Music / Concert",
-        "#2b73ff",
+        "#2f6df6",
+        "#f8fbff",
         ("concert", "live", "dj", "gig", "music", "band", "techno", "house", "trance", "hip hop"),
         7,
     ),
     "party": CategoryConfig(
         "Party / Club",
-        "#e84141",
+        "#d94b3d",
+        "#fff8f5",
         ("club", "party", "nightlife", "bar", "rave", "guestlist", "bottle service", "ladies night", "rooftop"),
         4,
     ),
-    "sports": CategoryConfig("Sports", "#1e9a56", ("football", "soccer", "rugby", "basketball", "marathon", "sports", "run"), 8),
-    "food": CategoryConfig("Food & Dining", "#d5a10d", ("brunch", "wine", "dining", "restaurant", "food", "tasting"), 6),
-    "culture": CategoryConfig("Culture / Theater", "#7a4ddb", ("theater", "museum", "exhibition", "opera", "culture", "art"), 5),
-    "networking": CategoryConfig("Networking / Business", "#3f879f", ("networking", "startup", "summit", "conference", "business"), 5),
-    "other": CategoryConfig("Other", "#6d7380", (), 0),
+    "sports": CategoryConfig(
+        "Sports",
+        "#169b72",
+        "#f6fffc",
+        ("football", "soccer", "rugby", "basketball", "marathon", "sports", "run"),
+        8,
+    ),
+    "food": CategoryConfig(
+        "Food & Dining",
+        "#d69418",
+        "#fffaf0",
+        ("brunch", "wine", "dining", "restaurant", "food", "tasting"),
+        6,
+    ),
+    "culture": CategoryConfig(
+        "Culture / Theater",
+        "#7d57c2",
+        "#faf7ff",
+        ("theater", "museum", "exhibition", "opera", "culture", "art"),
+        5,
+    ),
+    "networking": CategoryConfig(
+        "Networking / Business",
+        "#167e8f",
+        "#f3feff",
+        ("networking", "startup", "summit", "conference", "business"),
+        5,
+    ),
+    "other": CategoryConfig("Other", "#6c7284", "#f8f9fb", (), 0),
 }
 
 
@@ -60,4 +87,5 @@ def categories_for_api() -> Iterable[dict[str, str]]:
             "slug": slug,
             "label": cfg.label,
             "color": cfg.color,
+            "text_color": cfg.text_color,
         }
