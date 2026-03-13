@@ -1,87 +1,103 @@
-# Automated Event Discovery and Color-Coded Calendar (Hong Kong)
+# Hong Kong Event Calendar
 
-This project scans configured Hong Kong event sources, categorizes events automatically, and displays them in a filterable color-coded calendar.
+This project scrapes selected Hong Kong event sources, classifies events automatically, and shows them in a filterable calendar with direct links to maps, tickets, and offers.
 
 ## Features
-- Automatic scraping pipeline (manual trigger + daily scheduler)
-- Multi-strategy scraping:
-  - JSON-LD Event schema extraction
-  - Generic event-card extraction on listing pages
-  - Event-link discovery + detail-page JSON-LD extraction
-- Event normalization and deduplication via stable `external_id`
-- Auto categorization:
-  - Music / Concert
-  - Party / Club
-  - Sports
-  - Food & Dining
-  - Culture / Theater
-  - Networking / Business
-- Color-coded calendar with month/week/day views
-- Clickable event details modal with map, tickets, and discount info
-- Optional discount hint extraction from source text
 
-## Tech Stack
-- Backend: Flask + SQLAlchemy + APScheduler
-- Database: SQLite
-- Frontend: FullCalendar + vanilla JS
+- Automated scraping pipeline with manual refresh and scheduled runs
+- Multi-strategy scraping support:
+  - JSON-LD event extraction
+  - Generic event-card extraction
+  - Event-link discovery and detail-page parsing
+- Automatic categorization for music, party, sports, food, culture, networking, and other
+- Color-coded calendar with month, week, and day views
+- Event detail modal with location, organizer, ticket, and discount links
+- Source debug endpoint for scrape diagnostics
 
-## Setup
+## Requirements
+
+- Python 3.10 or newer
+- `git`
+
+## Clone and install
+
 ```bash
-cd /Users/ezrabohm/Desktop/Python\ GBS/hk-event-calendar
+git clone https://github.com/gbs-hk/hk-event-time.git
+cd hk-event-time
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+Windows activation:
+
+```bash
+.venv\Scripts\activate
+```
+
+## Run the app
+
+```bash
 python run.py
 ```
 
-Open: `http://127.0.0.1:5050`
+Open [http://127.0.0.1:5050](http://127.0.0.1:5050)
 
-## API Endpoints
+If port `5050` is already in use:
+
+```bash
+PORT=5051 python run.py
+```
+
+## Common commands
+
+Refresh dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run tests:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+## Configuration
+
+The app can be configured with environment variables:
+
+- `PORT`: web server port, default `5050`
+- `SCHEDULE_HOUR_UTC`: daily scheduled scrape hour in UTC
+- `SCRAPE_TIMEOUT_SECONDS`: per-request scrape timeout
+- `SCRAPE_MAX_DETAIL_PAGES_PER_SOURCE`: detail pages followed per source, default `12`
+- `SCRAPE_INCLUDE_SAMPLE`: set to `1` to include sample demo events
+- `SCRAPE_SOURCE_MODE`: `lkf_nightlife` or `all`
+- `SCRAPE_FOCUS_CATEGORIES`: comma-separated categories, default `party,music`
+
+Example:
+
+```bash
+SCRAPE_SOURCE_MODE=all SCRAPE_FOCUS_CATEGORIES=party,music,food python run.py
+```
+
+## API endpoints
+
 - `GET /api/categories`
-- `GET /api/events?start=<ISO>&end=<ISO>&category=music&category=sports`
+- `GET /api/events?start=<ISO>&end=<ISO>&category=music&category=party`
 - `POST /api/scrape-now`
-- `GET /api/debug/sources` (current upcoming events grouped by source)
-- `GET /api/debug/sources?run=1` (runs scrape now and returns per-source diagnostics)
+- `GET /api/debug/sources`
+- `GET /api/debug/sources?run=1`
 
-## Config
-- `SCHEDULE_HOUR_UTC`: daily scrape hour in UTC
-- `SCRAPE_TIMEOUT_SECONDS`: per-request timeout
-- `SCRAPE_MAX_DETAIL_PAGES_PER_SOURCE`: detail pages to follow per source (default: `12`)
-- `SCRAPE_INCLUDE_SAMPLE=1`: optionally include sample seed events
-- `SCRAPE_SOURCE_MODE`: `lkf_nightlife` (default) or `all`
-- `SCRAPE_FOCUS_CATEGORIES`: comma list (default: `party,music`)
+## Project structure
 
-## Current Sources
-Configured in `/Users/ezrabohm/Desktop/Python GBS/hk-event-calendar/app/scrapers/sources.py`, including:
-- discoverhongkong.com
-- hongkongcheapo.com/events
-- timeout.com/hong-kong
-- brandhk.gov.hk
-- meetup.com/cities/hk/hong_kong
-- eventbrite.com (HK pages)
-- internations.org/hong-kong-expats
-- letseventhk.com
-- lcsd.gov.hk
-- hkcc.gov.hk
-- hkculturalcentre.gov.hk
-- hkcec.com/en/event-calendar
-- partnernet.hktb.com events page
-- lankwaifong.com
-- cassiohk.com
-- dragon-i.com.hk
-- trilogyhk.com
-- zeus-lkf.com
-- omahk.com
-- boomeranghk.com
-- maggiechoos.com/hongkong
-- theironfairies.com/hong-kong
-- saharalkf.com
-- qing.hk
-- chinabarhk.com
-- hongkongpubcrawl.com
-- shuffle.hk
+- `app/`: Flask app, models, services, scheduler, and scrapers
+- `static/`: frontend JavaScript and CSS
+- `templates/`: HTML templates
+- `tests/`: test suite
 
-## Important Limitations
-- Some sites are JS-rendered, login-gated, or bot-protected; those may return partial or zero data with plain HTTP scraping.
-- For those sources, next step is a source-specific scraper (or browser automation) with explicit selectors/API usage.
-- Always follow each website's terms and robots policies.
+## Current scraping notes
+
+Configured sources include general Hong Kong event sites plus Lan Kwai Fong and nightlife-related sources. Some sites are JavaScript-rendered, login-gated, or bot-protected, so plain HTTP scraping may return partial or zero results. For those sources, the next step is a source-specific scraper or browser-based automation.
+
+Always make sure your use of scraped websites follows their terms and robots policies.
