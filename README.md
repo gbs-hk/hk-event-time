@@ -117,6 +117,14 @@ python run.py
 
 When deploying to Azure App Service or another hosted environment, set `DATABASE_URL` as an application setting instead of hardcoding it in the codebase.
 
+**App Service startup command** (Configuration → General settings): use Gunicorn so the app listens on the port Azure provides:
+
+```bash
+gunicorn --bind=0.0.0.0:${PORT:-8000} --workers=2 --threads=4 run:app
+```
+
+Set `FLASK_ENV=production` and `SECRET_KEY` in Application settings so debug mode is off and sessions are secure.
+
 ## API endpoints
 
 - `GET /api/categories`
