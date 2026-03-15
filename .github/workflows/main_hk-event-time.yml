@@ -32,17 +32,18 @@ jobs:
           source antenv/bin/activate
           pip install -r requirements.txt
 
-      # Include antenv so Azure has installed dependencies. Oryx does not run a build (pip install) when deploying this artifact, so the app must be deployed with the venv.
+      # Upload only app source (no venv) so Azure Oryx runs pip install during deploy and installs dependencies (e.g. python-dateutil).
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v6
         with:
           name: python-app
-          path: .
-
-      # Opting Out of Oryx Build
-      # If you prefer to disable the Oryx build process during deployment, follow these steps:
-      # 1. Remove the SCM_DO_BUILD_DURING_DEPLOYMENT app setting from your Azure App Service Environment variables.
-      # 2. Refer to sample workflows for alternative deployment strategies: https://github.com/Azure/actions-workflow-samples/tree/master/AppService
+          path: |
+            app
+            run.py
+            requirements.txt
+            runtime.txt
+            templates
+            static
 
   deploy:
     runs-on: ubuntu-latest
@@ -63,6 +64,12 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BFC869CB135A43B792809933289B5DB6 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
+
+      # Ensure Oryx runs pip install on Azure so dependencies (e.g. python-dateutil) are installed
+      - name: Enable Oryx build during deployment
+        run: |
+          RG=$(az webapp list --query "[?name=='hk-event-time'].resourceGroup | [0]" -o tsv)
+          az webapp config appsettings set --name hk-event-time --resource-group "$RG" --settings SCM_DO_BUILD_DURING_DEPLOYMENT=1
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
