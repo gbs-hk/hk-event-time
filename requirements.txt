@@ -6,4 +6,4 @@ urllib3<2
 beautifulsoup4==4.12.3
 python-dateutil==2.9.0.post0
 psycopg[binary]==3.2.13
-gunicorn==21.2.0
+gunicorn==22.0.0
