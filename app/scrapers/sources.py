@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from ..config import Config
+from .eventbrite_scraper import EventbriteScraper
 from .html_event_scraper import MultiStrategyEventScraper
+from .luma_scraper import LumaScraper
 from .sample_scraper import SampleHongKongScraper
 
 
@@ -91,6 +93,26 @@ ALL_SOURCE_URLS: dict[str, list[str]] = {
     ],
 }
 
+# Additional reliable sources with better structured content
+RELIABLE_SOURCES: dict[str, list[str]] = {
+    "timeout-hk-events": [
+        "https://www.timeout.com/hong-kong/things-to-do/best-events-in-hong-kong",
+        "https://www.timeout.com/hong-kong/restaurants/best-restaurant-events",
+        "https://www.timeout.com/hong-kong/bars/best-bar-events",
+    ],
+    "discover-hk-events": [
+        "https://www.discoverhongkong.com/eng/explore/events/festivals.html",
+        "https://www.discoverhongkong.com/eng/explore/events.html",
+    ],
+    "lcsd-events": [
+        "https://www.lcsd.gov.hk/en/ce/cultureDefinition.html",
+        "https://www.lcsd.gov.hk/en/ce/cultureDefinition/mus_11.html",
+    ],
+    "culture-portal": [
+        "https://www.lcsd.gov.hk/en/ej.html",
+    ],
+}
+
 LKF_NIGHTLIFE_SOURCE_KEYS = (
     "lan-kwai-fong",
     "cassio-hk",
@@ -116,8 +138,19 @@ LKF_NIGHTLIFE_SOURCE_KEYS = (
 def selected_sources() -> dict[str, list[str]]:
     mode = Config.SCRAPE_SOURCE_MODE.strip().lower()
     if mode == "lkf_nightlife":
-        return {key: ALL_SOURCE_URLS[key] for key in LKF_NIGHTLIFE_SOURCE_KEYS if key in ALL_SOURCE_URLS}
+        sources = {key: ALL_SOURCE_URLS[key] for key in LKF_NIGHTLIFE_SOURCE_KEYS if key in ALL_SOURCE_URLS}
+        # Include reliable sources for better event coverage
+        sources.update(RELIABLE_SOURCES)
+        return sources
+    if mode == "all":
+        all_src = dict(ALL_SOURCE_URLS)
+        all_src.update(RELIABLE_SOURCES)
+        return all_src
     return ALL_SOURCE_URLS
+
+
+# Sources handled by dedicated scrapers (not the generic MultiStrategy scraper).
+_DEDICATED_SCRAPERS = {"eventbrite-hk"}
 
 
 def build_scrapers() -> list:
@@ -125,6 +158,12 @@ def build_scrapers() -> list:
     if Config.SCRAPE_INCLUDE_SAMPLE:
         scrapers.append(SampleHongKongScraper())
 
+    # Dedicated scrapers that use APIs / embedded JSON instead of generic HTML parsing.
+    scrapers.append(LumaScraper())
+    scrapers.append(EventbriteScraper())
+
     for source_name, urls in selected_sources().items():
+        if source_name in _DEDICATED_SCRAPERS:
+            continue  # handled above
         scrapers.append(MultiStrategyEventScraper(source_name=source_name, urls=urls))
     return scrapers

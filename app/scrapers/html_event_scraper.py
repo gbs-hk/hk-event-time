@@ -63,16 +63,44 @@ class JsonLdEventScraper(BaseScraper):
         return dedupe_events(events)
 
     def _fetch_html(self, url: str) -> str:
-        try:
-            response = requests.get(
-                url,
-                timeout=Config.SCRAPE_TIMEOUT_SECONDS,
-                headers={"User-Agent": Config.SCRAPE_USER_AGENT},
-            )
-            response.raise_for_status()
-            return response.text
-        except Exception:
-            return ""
+        # Use a session for cookie persistence and better connection handling
+        session = requests.Session()
+        
+        # More realistic browser headers to avoid blocking
+        headers = {
+            "User-Agent": Config.SCRAPE_USER_AGENT,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+        }
+        
+        # Retry logic with exponential backoff
+        max_retries = 3
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
+                response = session.get(
+                    url,
+                    timeout=Config.SCRAPE_TIMEOUT_SECONDS,
+                    headers=headers,
+                    allow_redirects=True,
+                )
+                response.raise_for_status()
+                return response.text
+            except requests.exceptions.HTTPError as e:
+                # Don't retry on 4xx errors (client errors), they won't be fixed by retrying
+                if 400 <= e.response.status_code < 500:
+                    return ""
+            except requests.exceptions.RequestException:
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(retry_delay * (2 ** attempt))
+                else:
+                    return ""
+        return ""
 
     def _extract_from_html(self, page_url: str, html: str) -> list[ScrapedEvent]:
         soup = BeautifulSoup(html, "html.parser")
