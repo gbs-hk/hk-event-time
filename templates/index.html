@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hong Kong Events Calendar</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Hong Kong Nightlife Radar</p>
+          <h1>Find the next good night out without digging through ten sites.</h1>
+          <p class="hero-text">
+            A cleaner view of upcoming club nights, parties, and music events with fast filters and direct links.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="scrapeButton" class="primary">Refresh Events</button>
+          <div class="status-card">
+            <span class="status-label">Current View</span>
+            <strong id="viewRangeLabel">Loading...</strong>
+            <span id="calendarStatus">Fetching events...</span>
+            <div id="scrapeProgress" class="progress-copy">No scrape running.</div>
+          </div>
+        </div>
+      </header>
+
+      <section class="status-grid">
+        <article class="metric-card">
+          <span class="status-label">Last Scrape</span>
+          <strong id="lastScrapeValue">Never</strong>
+          <span id="lastScrapeMeta">No completed imports yet.</span>
+        </article>
+        <article class="metric-card">
+          <span class="status-label">Sources Checked</span>
+          <strong id="sourcesCheckedValue">0</strong>
+          <span id="sourcesCheckedMeta">Priority set loading...</span>
+        </article>
+        <article class="metric-card">
+          <span class="status-label">Imported Events</span>
+          <strong id="eventsImportedValue">0</strong>
+          <span id="eventsImportedMeta">Waiting for next scrape.</span>
+        </article>
+        <article class="metric-card">
+          <span class="status-label">Failed Sources</span>
+          <strong id="failedSourcesValue">0</strong>
+          <span id="failedSourcesMeta">No source diagnostics yet.</span>
+        </article>
+      </section>
+
+      <section class="controls">
+        <div class="quick-filters" id="quickFilters">
+          <button class="quick-filter active" data-filter="all">All</button>
+          <button class="quick-filter" data-filter="today">Today</button>
+          <button class="quick-filter" data-filter="weekend">This Weekend</button>
+          <button class="quick-filter" data-filter="free">Free</button>
+          <button class="quick-filter" data-filter="music">Music</button>
+          <button class="quick-filter" data-filter="nightlife">Nightlife</button>
+          <button class="quick-filter" data-filter="central">Central</button>
+        </div>
+        <div id="categoryFilters" class="filters"></div>
+      </section>
+
+      <main class="calendar-panel">
+        <div class="view-switcher">
+          <button id="calendarViewButton" class="ghost active">Calendar</button>
+          <button id="listViewButton" class="ghost">List</button>
+        </div>
+        <div id="calendar"></div>
+        <div id="mobileListView" class="mobile-list" hidden></div>
+        <div id="emptyState" class="empty-state" hidden>
+          <h2>No events in this view yet</h2>
+          <p id="emptyStateText">Try another month or refresh the sources to pull the latest listings.</p>
+          <div class="empty-actions">
+            <button id="emptyPrevMonth" class="ghost">Open another month</button>
+            <button id="emptyRescrape" class="primary">Run live scrape again</button>
+          </div>
+        </div>
+      </main>
+
+      <section class="debug-panel">
+        <div class="debug-header">
+          <div>
+            <p class="eyebrow">Admin Debug</p>
+            <h2>Raw scraped, kept, rejected, and why</h2>
+          </div>
+          <button id="refreshDebugButton" class="ghost">Refresh Debug</button>
+        </div>
+        <div id="debugSources" class="debug-sources"></div>
+      </section>
+    </div>
+
+    <dialog id="eventDialog">
+      <article class="dialog-card">
+        <h2 id="eventTitle"></h2>
+        <p id="eventMeta"></p>
+        <dl class="event-facts">
+          <div><dt>Price</dt><dd id="eventPrice">TBD</dd></div>
+          <div><dt>Source</dt><dd id="eventSource">Unknown</dd></div>
+          <div><dt>Venue</dt><dd id="eventVenue">TBD</dd></div>
+          <div><dt>Category</dt><dd id="eventCategory">Other</dd></div>
+          <div><dt>Quality</dt><dd id="eventQuality">0</dd></div>
+        </dl>
+        <p id="eventDescription"></p>
+        <div class="links">
+          <a id="sourceLink" target="_blank" rel="noopener">Source Page</a>
+          <a id="mapLink" target="_blank" rel="noopener">Open Map</a>
+          <a id="ticketLink" target="_blank" rel="noopener">Tickets / Registration</a>
+          <a id="discountLink" target="_blank" rel="noopener">Discount Offer</a>
+          <a id="calendarLink" target="_blank" rel="noopener">Add to calendar</a>
+        </div>
+        <button id="closeDialog" class="ghost">Close</button>
+      </article>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
