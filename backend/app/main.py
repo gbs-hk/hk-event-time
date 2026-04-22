@@ -28,15 +28,13 @@ app.add_middleware(
 app.include_router(events_router, prefix="/api")
 
 frontend_out_dir = Path(__file__).resolve().parent / "frontend_out"
-frontend_available = frontend_out_dir.exists()
 
 
 @app.get("/", response_class=HTMLResponse)
 def root() -> str:
-    if frontend_available:
-        index_file = frontend_out_dir / "index.html"
-        if index_file.exists():
-            return index_file.read_text(encoding="utf-8")
+    index_file = frontend_out_dir / "index.html"
+    if index_file.exists():
+        return index_file.read_text(encoding="utf-8")
 
     return """<!DOCTYPE html>
 <html lang="en">
@@ -81,5 +79,4 @@ def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 
 
-if frontend_available:
-    app.mount("/", StaticFiles(directory=str(frontend_out_dir), html=True), name="frontend")
+app.mount("/", StaticFiles(directory=str(frontend_out_dir), html=True, check_dir=False), name="frontend")
