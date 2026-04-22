@@ -14,7 +14,7 @@
     "@fullcalendar/interaction": "^6.1.15",
     "@fullcalendar/react": "^6.1.15",
     "@fullcalendar/timegrid": "^6.1.15",
-    "next": "^15.1.6",
+    "next": "^15.5.15",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
