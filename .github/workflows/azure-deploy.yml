@@ -65,7 +65,7 @@ jobs:
           az webapp config appsettings set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true DATABASE_URL=sqlite:////home/site/wwwroot/hk_events.db
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
