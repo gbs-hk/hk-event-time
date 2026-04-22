@@ -40,6 +40,9 @@ def list_events(
         # Keep the API responsive in cloud environments where DB wiring is still pending.
         logger.exception("Database unavailable while listing events")
         return []
+    except Exception:
+        logger.exception("Unexpected failure while listing events")
+        return []
 
 
 @router.get("/categories", response_model=list[CategoryOut])
@@ -48,6 +51,9 @@ def list_categories(db: Session = Depends(get_db)) -> list[CategoryOut]:
         return list(db.scalars(select(Category).order_by(Category.name.asc())).all())
     except OperationalError:
         logger.exception("Database unavailable while listing categories")
+        return []
+    except Exception:
+        logger.exception("Unexpected failure while listing categories")
         return []
 
 

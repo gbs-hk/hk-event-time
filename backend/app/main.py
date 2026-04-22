@@ -27,7 +27,7 @@ app.add_middleware(
 
 app.include_router(events_router, prefix="/api")
 
-frontend_out_dir = Path(__file__).resolve().parents[2] / "frontend" / "out"
+frontend_out_dir = Path(__file__).resolve().parent / "frontend_out"
 frontend_available = frontend_out_dir.exists()
 
 
