@@ -203,6 +203,42 @@ Refresh the browser -- events should appear on the calendar.
 
 ---
 
+## Auto deploy to Azure (simple view)
+
+When you push code to `main`, GitHub Actions deploys your app to Azure automatically.
+
+```mermaid
+flowchart LR
+  localCode[Your code on laptop] -->|git push main| githubRepo[GitHub repository]
+  githubRepo --> deployWorkflow[Deploy workflow]
+  deployWorkflow --> azureWebApp[Azure Web App hk-event-time]
+  azureWebApp --> healthWorkflow[Post-deploy health check workflow]
+  healthWorkflow --> result{Health check pass?}
+  result -->|Yes| green[Deployment is healthy]
+  result -->|No| red[Workflow fails so you catch issues fast]
+```
+
+### What runs on each push
+
+1. `.github/workflows/azure-deploy.yml` runs on every push to `main`.
+2. It deploys the latest commit to Azure Web App `hk-event-time`.
+3. `.github/workflows/post-deploy-healthcheck.yml` runs after deploy and probes:
+   - `/`
+   - `/api/events?start=...&end=...`
+4. If either probe fails, the health-check workflow fails.
+
+### Required GitHub secrets (one-time setup)
+
+In your GitHub repo settings, add:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+These are used by OIDC login in the deploy workflow.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
