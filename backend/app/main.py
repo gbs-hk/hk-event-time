@@ -5,9 +5,12 @@ which frontend URLs are allowed to call it (CORS), and registers the API
 routes defined in app/api/events.py.
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.events import router as events_router
 from app.config import settings
@@ -24,9 +27,17 @@ app.add_middleware(
 
 app.include_router(events_router, prefix="/api")
 
+frontend_out_dir = Path(__file__).resolve().parents[2] / "frontend" / "out"
+frontend_available = frontend_out_dir.exists()
+
 
 @app.get("/", response_class=HTMLResponse)
 def root() -> str:
+    if frontend_available:
+        index_file = frontend_out_dir / "index.html"
+        if index_file.exists():
+            return index_file.read_text(encoding="utf-8")
+
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,3 +79,7 @@ def root() -> str:
 @app.get("/health")
 def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
+
+
+if frontend_available:
+    app.mount("/", StaticFiles(directory=str(frontend_out_dir), html=True), name="frontend")
