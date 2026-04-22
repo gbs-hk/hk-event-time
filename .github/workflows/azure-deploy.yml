@@ -12,7 +12,8 @@ permissions:
 
 env:
   AZURE_WEBAPP_NAME: hk-event-time
-  AZURE_WEBAPP_PACKAGE_PATH: .
+  AZURE_WEBAPP_PACKAGE_PATH: backend
+  AZURE_RESOURCE_GROUP: hk-event-time
 
 jobs:
   build-and-deploy:
@@ -32,6 +33,13 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BFC869CB135A43B792809933289B5DB6 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
+
+      - name: Ensure FastAPI startup command is configured
+        run: |
+          az webapp config set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --startup-file "gunicorn --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3

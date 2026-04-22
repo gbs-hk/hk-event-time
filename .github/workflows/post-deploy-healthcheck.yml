@@ -15,10 +15,11 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Probe web root
+      - name: Probe API health endpoint
         run: |
           curl --fail --show-error --silent --retry 5 --retry-delay 5 --retry-connrefused \
-            "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/"
+            "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health" \
+            | grep -q '"status":"ok"'
 
       - name: Probe events API with required query parameters
         run: |
