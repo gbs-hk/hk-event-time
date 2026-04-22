@@ -42,7 +42,11 @@ jobs:
           az webapp config set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --startup-file "gunicorn --chdir backend --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app"
+            --linux-fx-version "PYTHON|3.10"
+          az webapp config set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --startup-file "bash -c \"pip install -r /home/site/wwwroot/backend/requirements.txt && exec gunicorn --chdir /home/site/wwwroot/backend --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app\""
 
       - name: Ensure Oryx build is enabled during deployment
         run: |
