@@ -205,6 +205,11 @@ def scrape_all_sources(db: Session) -> dict[str, int]:
         db.commit()
         time.sleep(source.rate_limit_ms / 1000)
 
+    from datetime import datetime, timezone, timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    db.query(Event).filter(Event.start_datetime < cutoff).delete()
+    db.commit()
+
     return {"processed": inserted_or_updated, "source_errors": source_errors}
 
 
