@@ -44,6 +44,13 @@ jobs:
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --startup-file "gunicorn --chdir backend --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app"
 
+      - name: Ensure Oryx build is enabled during deployment
+        run: |
+          az webapp config appsettings set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
