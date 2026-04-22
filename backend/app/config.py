@@ -7,7 +7,7 @@ ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/hk_events"
+    database_url: str = "sqlite:///./hk_events.db"
     app_env: str = "development"
     cors_origins: str = Field(
         default="http://localhost:3000",
