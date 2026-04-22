@@ -12,7 +12,7 @@ permissions:
 
 env:
   AZURE_WEBAPP_NAME: hk-event-time
-  AZURE_WEBAPP_PACKAGE_PATH: backend
+  AZURE_WEBAPP_PACKAGE_PATH: .
   AZURE_RESOURCE_GROUP: hk-event-time
 
 jobs:
@@ -27,6 +27,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Prepare deploy artifact for Oryx dependency detection
+        run: cp backend/requirements.txt requirements.txt
+
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
         with:
@@ -39,7 +42,7 @@ jobs:
           az webapp config set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --startup-file "gunicorn --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app"
+            --startup-file "gunicorn --chdir backend --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
