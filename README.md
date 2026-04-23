@@ -1,15 +1,18 @@
 # Hong Kong Event Time
 
-Event discovery app for Hong Kong with source-prioritized scraping, quality scoring, calendar and mobile list views, and per-source debug diagnostics.
+This repository now contains two local code paths that have been merged together:
 
-## What changed
-- Scraping now defaults to a curated priority set of 5 sources instead of treating every source equally.
-- Each event gets a `quality_score`; low-confidence, generic, archive-like, duplicate, and stale rows are rejected before import.
-- Manual scrapes run through a background queue with progress polling, per-source timeout, retry, and failure isolation.
-- The UI now shows scrape health, source counts, imported/rejected totals, richer event details, empty-state actions, and a mobile-friendly list mode.
-- Debug output includes raw fetched counts plus kept/rejected samples and reject reasons per source.
+- the original Flask calendar app in the repo root (`app/`, `static/`, `templates/`, `run.py`)
+- the newer GitHub-published split stack under `backend/` and `frontend/`
 
-## Setup
+Your current local preview work is still based on the root-level Flask app and runs at [http://127.0.0.1:5050](http://127.0.0.1:5050).
+
+## Local Flask app
+
+Event discovery app for Hong Kong with source-prioritized scraping, calendar and mobile list views, and per-source debug diagnostics.
+
+### Setup
+
 ```bash
 cd /Users/leozille/Downloads/hk-event-time
 python3 -m venv .venv
@@ -21,29 +24,37 @@ python run.py
 
 Open [http://127.0.0.1:5050](http://127.0.0.1:5050)
 
-## Key endpoints
+### Key endpoints
+
 - `GET /api/categories`
-- `GET /api/events?start=<ISO>&end=<ISO>&category=music&free=1&district=central`
+- `GET /api/events?start=<ISO>&end=<ISO>`
 - `POST /api/scrape-now`
 - `GET /api/scrape-status`
 - `GET /api/debug/sources`
 
-## Runtime config
-Use `.env` for product settings:
-- `SCRAPE_SOURCE_MODE=priority|all|lkf_nightlife`
-- `SCRAPE_MIN_QUALITY_SCORE`
-- `SCRAPE_SOURCE_TIMEOUT_SECONDS`
-- `SCRAPE_RETRY_COUNT`
-- `CACHE_TTL_SECONDS`
-- `DATABASE_URL`
+## New GitHub backend/frontend stack
 
-## Deployment baseline
-- App server: `gunicorn wsgi:app --bind 0.0.0.0:5050 --workers 2 --threads 4`
-- Reverse proxy: nginx or Caddy in front of Gunicorn
-- Database: SQLite is still supported for local/dev, Postgres is the intended next production step
-- Monitoring: use the scrape history/debug endpoints and source-level logs as the initial health surface
+The fetched GitHub version also adds:
 
-## Current limitations
-- Some sources are JS-heavy or bot-protected, so even curated source scrapers can still return partial data.
-- There is no Postgres migration layer yet; the app still relies on SQLAlchemy `create_all`.
-- The in-process queue is good enough for one instance, but not a distributed worker setup.
+- `backend/` with a newer API/scraper structure
+- `frontend/` with a Next.js UI
+- `.github/workflows/` deployment workflows
+- `docker-compose.yml` and Postgres-oriented local setup
+
+That stack has not replaced your root Flask app locally; it has been merged alongside it so you can compare, reuse, or gradually port pieces across.
+
+### High-level flow of the newer stack
+
+```mermaid
+flowchart LR
+  Sites["Event websites"] --> Scraper["Backend scrapers"]
+  Scraper --> DB[("Database")]
+  Frontend["Next.js frontend"] --> API["Backend API"]
+  API --> DB
+```
+
+## Notes
+
+- SQLite remains the active local DB for the root Flask app unless you switch `.env`.
+- The merged repo currently includes build artifacts and cached Python files from GitHub history under `backend/app/frontend_out/` and some `__pycache__` directories.
+- If you want, the next step can be a cleanup pass where we decide which stack should become the single main app and remove the rest.

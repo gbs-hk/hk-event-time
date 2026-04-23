@@ -1,0 +1,35 @@
+name: Post-Deploy Health Check
+
+on:
+  workflow_run:
+    workflows:
+      - Build and deploy Python app to Azure Web App - hk-event-time
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  healthcheck:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe web root renders frontend app
+        run: |
+          curl --fail --show-error --silent --retry 5 --retry-delay 5 --retry-connrefused \
+            "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/" \
+            | grep -q "Hong Kong Event Discovery"
+
+      - name: Probe API health endpoint
+        run: |
+          curl --fail --show-error --silent --retry 5 --retry-delay 5 --retry-connrefused \
+            "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health" \
+            | grep -q '"status":"ok"'
+
+      - name: Probe events API with required query parameters
+        run: |
+          START="$(date -u +%Y-%m-01T00:00:00Z)"
+          END="$(date -u -d '+32 days' +%Y-%m-01T00:00:00Z)"
+          curl --fail --show-error --silent --retry 5 --retry-delay 5 --retry-connrefused \
+            "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/api/events?start=${START}&end=${END}"
