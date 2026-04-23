@@ -12,7 +12,7 @@ permissions:
 
 env:
   AZURE_WEBAPP_NAME: hk-event-time
-  AZURE_WEBAPP_PACKAGE_PATH: .
+  AZURE_WEBAPP_PACKAGE_PATH: deploy.zip
   AZURE_RESOURCE_GROUP: hk-event-time
 
 jobs:
@@ -39,8 +39,14 @@ jobs:
           rm -rf backend/app/frontend_out
           cp -R frontend/out backend/app/frontend_out
 
-      - name: Prepare deploy artifact for Oryx dependency detection
-        run: cp backend/requirements.txt requirements.txt
+      - name: Verify exported frontend assets
+        run: python3 backend/scripts/verify_frontend_export.py backend/app/frontend_out
+
+      - name: Assemble deploy artifact
+        run: |
+          rm -f deploy.zip
+          cd backend
+          zip -qr ../deploy.zip .
 
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
@@ -49,26 +55,29 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
 
-      - name: Ensure FastAPI startup command is configured
-        run: |
-          az webapp config set \
-            --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --linux-fx-version "PYTHON|3.10"
-          az webapp config set \
-            --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --startup-file "bash -c \"pip install -r /home/site/wwwroot/backend/requirements.txt && python /home/site/wwwroot/backend/scripts/init_db.py && exec gunicorn --chdir /home/site/wwwroot/backend --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app\""
-
-      - name: Ensure Oryx build is enabled during deployment
+      - name: Configure Azure Web App deployment settings
         run: |
           az webapp config appsettings set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true DATABASE_URL=sqlite:////home/site/wwwroot/hk_events.db
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false DATABASE_URL=sqlite:////home/site/wwwroot/hk_events.db
+          az webapp config set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --linux-fx-version "PYTHON|3.10"
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+      - name: Deploy prepared artifact to Azure Web App
+        run: |
+          az webapp deploy \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --src-path "${AZURE_WEBAPP_PACKAGE_PATH}" \
+            --type zip \
+            --clean true
+
+      - name: Configure FastAPI startup command
+        run: |
+          az webapp config set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --startup-file "bash -c \"pip install -r /home/site/wwwroot/requirements.txt && python /home/site/wwwroot/scripts/init_db.py && exec gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app\""
