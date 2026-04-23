@@ -115,8 +115,7 @@ body {
 }
 
 .primary,
-.ghost,
-.quick-filter {
+.ghost {
   border: none;
   border-radius: 999px;
   padding: 0.85rem 1.25rem;
@@ -132,15 +131,13 @@ body {
   box-shadow: 0 14px 28px rgba(143, 52, 33, 0.22);
 }
 
-.ghost,
-.quick-filter {
+.ghost {
   color: var(--text);
   background: #f0e5d5;
 }
 
 .primary:hover,
-.ghost:hover,
-.quick-filter:hover {
+.ghost:hover {
   transform: translateY(-1px);
 }
 
@@ -149,7 +146,6 @@ body {
   opacity: 0.75;
 }
 
-.quick-filter.active,
 .ghost.active {
   background: var(--accent);
   color: #fffaf5;
@@ -196,19 +192,27 @@ body {
   padding: 14px 16px;
 }
 
-.quick-filters,
-.filters,
+.legend-row,
 .view-switcher {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.quick-filters {
+.legend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
-.filter-chip {
+.legend-copy {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.legend-chip {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -221,12 +225,7 @@ body {
   font-weight: 600;
 }
 
-.filter-chip input {
-  margin: 0;
-  accent-color: var(--accent);
-}
-
-.filter-dot {
+.legend-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -291,7 +290,6 @@ body {
 }
 
 .list-pill,
-.list-quality,
 .debug-status {
   border-radius: 999px;
   padding: 6px 10px;
@@ -500,6 +498,11 @@ dialog::backdrop {
 @media (max-width: 1000px) {
   .status-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .legend-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

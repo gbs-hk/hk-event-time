@@ -55,16 +55,11 @@
       </section>
 
       <section class="controls">
-        <div class="quick-filters" id="quickFilters">
-          <button class="quick-filter active" data-filter="all">All</button>
-          <button class="quick-filter" data-filter="today">Today</button>
-          <button class="quick-filter" data-filter="weekend">This Weekend</button>
-          <button class="quick-filter" data-filter="free">Free</button>
-          <button class="quick-filter" data-filter="music">Music</button>
-          <button class="quick-filter" data-filter="nightlife">Nightlife</button>
-          <button class="quick-filter" data-filter="central">Central</button>
+        <div class="legend-header">
+          <span class="status-label">Category Legend</span>
+          <span class="legend-copy">Colors in the calendar match these categories.</span>
         </div>
-        <div id="categoryFilters" class="filters"></div>
+        <div id="categoryFilters" class="legend-row"></div>
       </section>
 
       <main class="calendar-panel">
@@ -105,7 +100,6 @@
           <div><dt>Source</dt><dd id="eventSource">Unknown</dd></div>
           <div><dt>Venue</dt><dd id="eventVenue">TBD</dd></div>
           <div><dt>Category</dt><dd id="eventCategory">Other</dd></div>
-          <div><dt>Quality</dt><dd id="eventQuality">0</dd></div>
         </dl>
         <p id="eventDescription"></p>
         <div class="links">

@@ -48,6 +48,28 @@ class QualityTests(unittest.TestCase):
         self.assertFalse(result["rejected"])
         self.assertGreaterEqual(result["score"], 55)
 
+    def test_accepts_trusted_source_label_for_bonus(self):
+        event = ScrapedEvent(
+            external_id="x",
+            name="Harbourfront Jazz Evening",
+            description="Live jazz by the harbour with booking page.",
+            source_name="Discover Hong Kong",
+            organizer="",
+            location_name="Central Harbourfront",
+            location_address="",
+            map_url="https://maps.google.com/?q=Central Harbourfront",
+            start_time_utc=datetime(2026, 5, 1, 12, 0, 0),
+            end_time_utc=None,
+            ticket_url="https://example.com/tickets",
+            discount_text="",
+            discount_url="",
+            source_url="https://example.com/event",
+            price_text="HK$180",
+        )
+        result = evaluate_event(event)
+        self.assertFalse(result["rejected"])
+        self.assertGreaterEqual(result["score"], 55)
+
 
 if __name__ == "__main__":
     unittest.main()

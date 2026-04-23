@@ -29,6 +29,18 @@ EVENT_LINK_MARKERS = (
     "calendar",
     "meetup",
 )
+EVENT_CONTAINER_HINTS = (
+    "event",
+    "events",
+    "calendar",
+    "listing",
+    "programme",
+    "program",
+    "schedule",
+    "upcoming",
+    "whatson",
+    "what-s-on",
+)
 DISCOUNT_MARKERS = ("discount", "early bird", "promo", "coupon", "save", "off", "%")
 LOW_QUALITY_TITLES = {
     "play",
@@ -48,6 +60,24 @@ LOW_QUALITY_TITLE_PATTERNS = (
     r"\bguide\b",
     r"\bthings to do\b",
     r"\barchive\b",
+)
+CARD_DATE_PATTERNS = (
+    r"\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}(?:\s+\d{1,2}(?::\d{2})?(?:\s?[APMapm]{2})?)?",
+    r"\b[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}(?:\s+\d{1,2}(?::\d{2})?(?:\s?[APMapm]{2})?)?",
+    r"\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?",
+    r"\b(?:Mon|Tue|Tues|Wed|Thu|Thur|Fri|Sat|Sun)(?:day)?\s*,?\s+\d{1,2}\s+[A-Za-z]{3,9}(?:\s+\d{4})?(?:\s+\d{1,2}(?::\d{2})?(?:\s?[APMapm]{2})?)?",
+    r"\b\d{1,2}\s*[-/]\s*\d{1,2}\s+[A-Za-z]{3,9}(?:\s+\d{4})?(?:\s+\d{1,2}(?::\d{2})?(?:\s?[APMapm]{2})?)?",
+    r"\b[A-Za-z]{3,9}\s+\d{1,2}(?:\s*[-/]\s*\d{1,2})?(?:,?\s+\d{4})?(?:\s+\d{1,2}(?::\d{2})?(?:\s?[APMapm]{2})?)?",
+)
+DATE_ATTRIBUTE_NAMES = (
+    "datetime",
+    "date",
+    "data-date",
+    "data-start",
+    "data-start-date",
+    "data-start-time",
+    "data-event-date",
+    "content",
 )
 
 
@@ -167,6 +197,9 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
                 if not detail_html:
                     continue
                 events.extend(self._extract_from_html(detail_url, detail_html))
+                detail_event = self._extract_detail_page_event(detail_url, detail_html)
+                if detail_event:
+                    events.append(detail_event)
 
         return dedupe_events(events)
 
@@ -215,7 +248,10 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
                     node.get_text(" ", strip=True)[:200].lower(),
                 ]
             ).lower()
-            if not any(marker in context for marker in EVENT_LINK_MARKERS):
+            has_event_marker = any(marker in context for marker in EVENT_LINK_MARKERS + EVENT_CONTAINER_HINTS)
+            has_date = self._parse_card_start(node) is not None
+            has_link = node.find("a", href=True) is not None
+            if not has_event_marker and not (has_date and has_link):
                 continue
 
             event = self._card_to_event(page_url, node)
@@ -223,6 +259,49 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
                 events.append(event)
 
         return events
+
+    def _extract_detail_page_event(self, page_url: str, html: str) -> ScrapedEvent | None:
+        soup = BeautifulSoup(html, "html.parser")
+        root = soup.find("main") or soup.find("article") or soup.body
+        if not isinstance(root, Tag):
+            return None
+
+        title_tag = root.find(["h1", "h2"]) or soup.find("meta", property="og:title")
+        title = ""
+        if isinstance(title_tag, Tag):
+            title = normalize_text(title_tag.get_text(" ", strip=True) or title_tag.get("content") or "")
+        if len(title) < 4 or is_low_quality_title(title):
+            return None
+
+        start_time = self._parse_card_start(root)
+        if not start_time:
+            return None
+
+        paragraphs = [normalize_text(tag.get_text(" ", strip=True)) for tag in root.find_all(["p", "li"], limit=6)]
+        description = " ".join(text for text in paragraphs if text)[:500]
+        location_name = extract_location_from_node(root)
+        page_text = root.get_text(" ", strip=True)
+        price_text = extract_price_text(page_text)
+        discount_text = extract_discount_text(page_text)
+
+        external_id = stable_external_id(self.source_name, page_url, title, start_time)
+        return ScrapedEvent(
+            external_id=external_id,
+            name=title,
+            description=description,
+            source_name=self.source_name,
+            organizer="",
+            location_name=location_name,
+            location_address="",
+            map_url=build_map_url(location_name, ""),
+            start_time_utc=start_time,
+            end_time_utc=None,
+            ticket_url=page_url,
+            discount_text=discount_text,
+            discount_url=page_url if discount_text else "",
+            source_url=page_url,
+            price_text=price_text,
+        )
 
     def _card_to_event(self, page_url: str, node: Tag) -> ScrapedEvent | None:
         title_tag = node.find(["h1", "h2", "h3", "h4", "a"])
@@ -287,13 +366,14 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
             if text:
                 candidates.append(text)
 
+        for tag in node.find_all(True):
+            for attr_name in DATE_ATTRIBUTE_NAMES:
+                raw = tag.get(attr_name)
+                if raw and isinstance(raw, str):
+                    candidates.append(raw)
+
         node_text = node.get_text(" ", strip=True)
-        regexes = (
-            r"\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}(?:\s+\d{1,2}:\d{2}(?:\s?[APMapm]{2})?)?",
-            r"\b[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}(?:\s+\d{1,2}:\d{2}(?:\s?[APMapm]{2})?)?",
-            r"\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?",
-        )
-        for pattern in regexes:
+        for pattern in CARD_DATE_PATTERNS:
             match = re.search(pattern, node_text)
             if match:
                 candidates.append(match.group(0))
@@ -333,6 +413,33 @@ class ConfiguredSourceScraper(MultiStrategyEventScraper):
                     event.description = f"{self.definition.category_hint.title()} listing from {self.definition.label}"
                 events.append(event)
         return events
+
+    def _extract_detail_page_event(self, page_url: str, html: str) -> ScrapedEvent | None:
+        event = super()._extract_detail_page_event(page_url, html)
+        if not event:
+            return None
+
+        soup = BeautifulSoup(html, "html.parser")
+        root = soup.find("main") or soup.find("article") or soup.body
+        if isinstance(root, Tag):
+            location_name = event.location_name
+            if not location_name:
+                for selector in self.definition.location_selectors:
+                    tag = root.select_one(selector)
+                    if tag:
+                        location_name = normalize_text(tag.get_text(" ", strip=True))
+                        break
+            if not location_name:
+                location_name = extract_location_from_node(root)
+
+            event.location_name = location_name
+            event.map_url = build_map_url(location_name, "")
+
+            if self.definition.category_hint and not event.description:
+                event.description = f"{self.definition.category_hint.title()} listing from {self.definition.label}"
+
+        event.source_name = self.definition.label
+        return event
 
     def _card_to_event(self, page_url: str, node: Tag) -> ScrapedEvent | None:
         title_tag = node.select_one(self.definition.title_selector) if self.definition.title_selector else None
@@ -401,6 +508,12 @@ def parse_datetime_to_utc(value: str | None) -> datetime | None:
         return None
 
     has_explicit_year = bool(re.search(r"\b\d{4}\b", value))
+    cleaned_value = re.sub(r"\b(to|until)\b.*$", "", value, flags=re.I).strip()
+    if cleaned_value != value:
+        try:
+            parsed = dt_parser.parse(cleaned_value, fuzzy=True)
+        except Exception:
+            pass
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=HK_TZ)
 
@@ -493,6 +606,9 @@ def extract_price_text(text: str) -> str:
     match = re.search(r"\b(?:hk\$|\$)\s?\d[\d,]*(?:\.\d{2})?\b", text, flags=re.I)
     if match:
         return match.group(0).upper().replace("HK$", "HK$")
+    range_match = re.search(r"\b(?:from|starting at)\s+(hk\$|\$)\s?\d[\d,]*(?:\.\d{2})?\b", text, flags=re.I)
+    if range_match:
+        return range_match.group(0).replace("starting at", "Starting at").replace("from", "From")
     if re.search(r"\bfree entry\b|\bfree\b", text, flags=re.I):
         return "Free"
     return ""
@@ -583,3 +699,31 @@ def richness_score(event: ScrapedEvent) -> int:
         ]
         if field
     )
+
+
+def extract_location_from_node(node: Tag) -> str:
+    for selector in (
+        ".location",
+        ".venue",
+        ".place",
+        ".address",
+        "[class*=location]",
+        "[class*=venue]",
+        "[class*=place]",
+    ):
+        tag = node.select_one(selector)
+        if tag:
+            text = normalize_text(tag.get_text(" ", strip=True))
+            if text:
+                return text
+
+    text = node.get_text(" ", strip=True)
+    match = re.search(
+        r"\b(?:at|venue|location)\s*[:\-]?\s*([A-Z][A-Za-z0-9&'().,\-/ ]{3,80})",
+        text,
+        flags=re.I,
+    )
+    if match:
+        location = normalize_text(match.group(1))
+        return re.split(r"\b(?:tickets?|price|free|register|more info)\b", location, maxsplit=1, flags=re.I)[0].strip(" ,:-")
+    return ""

@@ -27,6 +27,13 @@ SCRAPE_STATE_LOCK = threading.Lock()
 SCRAPE_JOBS: dict[str, dict[str, Any]] = {}
 LAST_COMPLETED_REPORT: dict[str, Any] | None = None
 WORKER_STARTED = False
+TRUSTED_SOURCE_ALIASES = {
+    "discover-hk": {"discover-hk", "discover hong kong"},
+    "hongkong-cheapo": {"hongkong-cheapo", "hong kong cheapo"},
+    "timeout-hk": {"timeout-hk", "time out hong kong"},
+    "hkcec": {"hkcec", "hong kong convention and exhibition centre"},
+    "lan-kwai-fong": {"lan-kwai-fong", "lan kwai fong"},
+}
 
 
 def utcnow_naive() -> datetime:
@@ -250,6 +257,8 @@ def evaluate_event(scraped: ScrapedEvent) -> dict[str, Any]:
         score += 10
     else:
         reasons.append("thin_description")
+        if scraped.description and len(scraped.description) >= 16:
+            score += 4
 
     if scraped.location_name:
         score += 10
@@ -273,6 +282,9 @@ def evaluate_event(scraped: ScrapedEvent) -> dict[str, Any]:
     else:
         reasons.append("missing_start")
 
+    if scraped.end_time_utc:
+        score += 4
+
     lowered = f"{scraped.name} {scraped.description}".lower()
     if "archive" in lowered or "past events" in lowered:
         reasons.append("archive_page")
@@ -281,13 +293,24 @@ def evaluate_event(scraped: ScrapedEvent) -> dict[str, Any]:
         reasons.append("generic_title")
         score -= 40
 
-    if scraped.source_name in {"discover-hk", "hongkong-cheapo", "timeout-hk", "hkcec", "lan-kwai-fong"}:
+    normalized_source = normalize_source_name(scraped.source_name)
+    if any(normalized_source in aliases for aliases in TRUSTED_SOURCE_ALIASES.values()):
         score += 15
+    if scraped.source_url and scraped.ticket_url and scraped.source_url != scraped.ticket_url:
+        score += 4
+    if scraped.location_name and scraped.price_text:
+        score += 3
+    if len(scraped.name.split()) >= 3:
+        score += 4
 
     rejected = score < Config.SCRAPE_MIN_QUALITY_SCORE or bool(
         {"missing_title", "missing_start", "generic_title", "archive_page"} & set(reasons)
     )
     return {"score": max(score, 0), "reasons": reasons, "rejected": rejected}
+
+
+def normalize_source_name(source_name: str) -> str:
+    return " ".join((source_name or "").strip().lower().replace("-", " ").split())
 
 
 def event_debug_payload(scraped: ScrapedEvent, evaluation: dict[str, Any]) -> dict[str, Any]:

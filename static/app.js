@@ -20,7 +20,6 @@ const eventPrice = document.getElementById("eventPrice");
 const eventSource = document.getElementById("eventSource");
 const eventVenue = document.getElementById("eventVenue");
 const eventCategory = document.getElementById("eventCategory");
-const eventQuality = document.getElementById("eventQuality");
 const sourceLink = document.getElementById("sourceLink");
 const mapLink = document.getElementById("mapLink");
 const ticketLink = document.getElementById("ticketLink");
@@ -63,7 +62,6 @@ const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
 
 let activeCategories = new Set();
 let categories = [];
-let activeQuickFilter = "all";
 let activeJobId = null;
 let lastRenderedEvents = [];
 let currentViewMode = window.innerWidth <= 700 ? "list" : "calendar";
@@ -78,29 +76,16 @@ async function loadCategories() {
 function renderCategoryFilters() {
   categoryFiltersEl.innerHTML = "";
   categories.forEach((category) => {
-    const label = document.createElement("label");
-    label.className = "filter-chip";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = activeCategories.has(category.slug);
-    checkbox.addEventListener("change", () => {
-      if (checkbox.checked) {
-        activeCategories.add(category.slug);
-      } else {
-        activeCategories.delete(category.slug);
-      }
-      calendar.refetchEvents();
-    });
+    const label = document.createElement("div");
+    label.className = "legend-chip";
 
     const dot = document.createElement("span");
-    dot.className = "filter-dot";
+    dot.className = "legend-dot";
     dot.style.background = category.color;
 
     const text = document.createElement("span");
     text.textContent = category.label;
 
-    label.appendChild(checkbox);
     label.appendChild(dot);
     label.appendChild(text);
     categoryFiltersEl.appendChild(label);
@@ -115,19 +100,6 @@ function buildEventsUrl(fetchInfo) {
 
   for (const category of activeCategories) {
     params.append("category", category);
-  }
-
-  if (activeQuickFilter === "free") {
-    params.set("free", "1");
-  }
-  if (activeQuickFilter === "music") {
-    params.set("quick_category", "music");
-  }
-  if (activeQuickFilter === "nightlife") {
-    params.set("quick_category", "party");
-  }
-  if (activeQuickFilter === "central") {
-    params.set("district", "central");
   }
 
   return `/api/events?${params.toString()}`;
@@ -178,7 +150,6 @@ function showEventDetails(event) {
   eventSource.textContent = props.source_name || "Unknown";
   eventVenue.textContent = props.location_name || props.location_address || "TBD";
   eventCategory.textContent = props.category || "Other";
-  eventQuality.textContent = `${props.quality_score || 0}/100`;
 
   setLink(sourceLink, props.source_url, "Source Page");
   setLink(mapLink, props.map_url, "Open Map");
@@ -202,53 +173,7 @@ function updateCalendarStatus(message, isEmpty) {
 }
 
 function describeEmptyState() {
-  if (activeQuickFilter === "free") {
-    return "No free events matched this range. Try another month or remove the free filter.";
-  }
-  if (activeQuickFilter === "today") {
-    return "No events matched today. Switch back to All or try another day.";
-  }
-  if (activeQuickFilter === "weekend") {
-    return "Nothing landed for this weekend. Try the month view or run another live scrape.";
-  }
   return "Try another month or refresh the sources to pull the latest listings.";
-}
-
-function setQuickFilter(filterName) {
-  activeQuickFilter = filterName;
-  document.querySelectorAll(".quick-filter").forEach((button) => {
-    button.classList.toggle("active", button.dataset.filter === filterName);
-  });
-
-  if (filterName === "today") {
-    calendar.changeView("timeGridDay");
-    calendar.today();
-  } else if (filterName === "weekend") {
-    calendar.changeView("timeGridWeek");
-  } else if (filterName === "music") {
-    calendar.changeView("dayGridMonth");
-  } else if (filterName === "nightlife") {
-    calendar.changeView("timeGridWeek");
-  } else if (filterName === "all") {
-    calendar.changeView("dayGridMonth");
-  } else {
-    calendar.changeView("dayGridMonth");
-  }
-
-  calendar.refetchEvents();
-}
-
-function passesQuickFilter(event) {
-  const start = event.start ? new Date(event.start) : null;
-  const now = new Date();
-
-  if (activeQuickFilter === "today") {
-    return start && start.toDateString() === now.toDateString();
-  }
-  if (activeQuickFilter === "weekend") {
-    return start && [6, 0].includes(start.getDay());
-  }
-  return true;
 }
 
 function renderMobileList(events) {
@@ -270,7 +195,6 @@ function renderMobileList(events) {
     card.innerHTML = `
       <div class="list-card-top">
         <span class="list-pill">${event.extendedProps.source_name || "Source"}</span>
-        <span class="list-quality">${event.extendedProps.quality_score || 0}/100</span>
       </div>
       <h3>${event.title}</h3>
       <p>${formatEventMeta(event)}</p>
@@ -439,10 +363,6 @@ document.addEventListener("click", (event) => {
   }
 });
 
-document.querySelectorAll(".quick-filter").forEach((button) => {
-  button.addEventListener("click", () => setQuickFilter(button.dataset.filter));
-});
-
 calendarViewButton.addEventListener("click", () => {
   currentViewMode = "calendar";
   calendarViewButton.classList.add("active");
@@ -496,7 +416,7 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
       events: async (fetchInfo, successCallback, failureCallback) => {
         try {
           const response = await fetch(buildEventsUrl(fetchInfo));
-          const events = (await response.json()).filter(passesQuickFilter);
+          const events = await response.json();
           lastRenderedEvents = events.map((event) => ({
             ...event,
             start: event.start ? new Date(event.start) : null,

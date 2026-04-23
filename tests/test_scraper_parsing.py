@@ -3,6 +3,7 @@ from datetime import datetime
 
 from app.scrapers.base import ScrapedEvent
 from app.scrapers.html_event_scraper import (
+    MultiStrategyEventScraper,
     dedupe_events,
     extract_price_text,
     is_low_quality_title,
@@ -42,6 +43,10 @@ class ScraperParsingTests(unittest.TestCase):
         self.assertEqual(extract_price_text("Tickets from HK$280 including one drink"), "HK$280")
         self.assertEqual(extract_price_text("Free entry before 11pm"), "Free")
 
+    def test_parse_datetime_supports_month_day_without_year(self):
+        parsed = parse_datetime_to_utc("May 1 20:00")
+        self.assertIsNotNone(parsed)
+
     def test_dedupe_semantic_events(self):
         base = ScrapedEvent(
             external_id="a",
@@ -76,6 +81,27 @@ class ScraperParsingTests(unittest.TestCase):
         rows = dedupe_events([base, richer])
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].external_id, "b")
+
+    def test_extract_detail_page_event_from_generic_html(self):
+        scraper = MultiStrategyEventScraper(source_name="demo", urls=["https://example.com"])
+        html = """
+        <html>
+            <body>
+                <main>
+                    <h1>Harbourfront Sunset Session</h1>
+                    <p>Live DJs, cocktails, and skyline views.</p>
+                    <div class="venue">Central Harbourfront</div>
+                    <time datetime="2026-05-01T20:00:00+08:00">1 May 2026 8pm</time>
+                </main>
+            </body>
+        </html>
+        """
+        event = scraper._extract_detail_page_event("https://example.com/events/harbourfront", html)
+        self.assertIsNotNone(event)
+        assert event is not None
+        self.assertEqual(event.name, "Harbourfront Sunset Session")
+        self.assertEqual(event.location_name, "Central Harbourfront")
+        self.assertEqual(event.ticket_url, "https://example.com/events/harbourfront")
 
 
 if __name__ == "__main__":
