@@ -67,13 +67,10 @@ jobs:
             --linux-fx-version "PYTHON|3.10"
 
       - name: Deploy prepared artifact to Azure Web App
-        run: |
-          az webapp deploy \
-            --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --src-path "${AZURE_WEBAPP_PACKAGE_PATH}" \
-            --type zip \
-            --clean true
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
       - name: Configure FastAPI startup command
         run: |
