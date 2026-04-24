@@ -5,6 +5,7 @@ from .eventbrite_scraper import EventbriteScraper
 from .html_event_scraper import MultiStrategyEventScraper
 from .luma_scraper import LumaScraper
 from .sample_scraper import SampleHongKongScraper
+from .urbtix_open_data_scraper import UrbtixOpenDataScraper
 
 
 ALL_SOURCE_URLS: dict[str, list[str]] = {
@@ -140,6 +141,7 @@ RELIABLE_SOURCES: dict[str, list[str]] = {
 }
 
 LKF_NIGHTLIFE_SOURCE_KEYS = (
+    "hongkong-cheapo",
     "lan-kwai-fong",
     "cassio-hk",
     "dragon-i",
@@ -189,6 +191,7 @@ def build_scrapers() -> list:
         scrapers.append(SampleHongKongScraper())
 
     # Dedicated scrapers that use APIs / embedded JSON instead of generic HTML parsing.
+    scrapers.append(UrbtixOpenDataScraper())
     scrapers.append(LumaScraper())
     scrapers.append(EventbriteScraper())
 
