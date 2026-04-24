@@ -57,6 +57,9 @@ jobs:
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --linux-fx-version "PYTHON|3.10"
 
+      - name: Wait for SCM restart to settle
+        run: sleep 90
+
       - name: Deploy prepared artifact to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
