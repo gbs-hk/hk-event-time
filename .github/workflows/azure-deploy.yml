@@ -27,26 +27,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Build frontend static export
-        run: |
-          npm ci --prefix frontend
-          npm run build --prefix frontend
-          rm -rf backend/app/frontend_out
-          cp -R frontend/out backend/app/frontend_out
-
-      - name: Verify exported frontend assets
-        run: python3 backend/scripts/verify_frontend_export.py backend/app/frontend_out
-
       - name: Assemble deploy artifact
         run: |
           rm -f deploy.zip
-          cd backend
-          zip -qr ../deploy.zip .
+          zip -qr deploy.zip app templates static run.py wsgi.py requirements.txt
 
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
@@ -60,7 +44,7 @@ jobs:
           az webapp config appsettings set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false DATABASE_URL=sqlite:////home/site/wwwroot/hk_events.db
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false DATABASE_URL=sqlite:////home/site/wwwroot/events.db FLASK_ENV=production USE_RELOADER=0
           az webapp config set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -77,4 +61,4 @@ jobs:
           az webapp config set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --startup-file "bash -c \"pip install -r /home/site/wwwroot/requirements.txt && python /home/site/wwwroot/scripts/init_db.py && exec gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --timeout 600 --worker-class uvicorn.workers.UvicornWorker app.main:app\""
+            --startup-file "bash -c \"pip install -r /home/site/wwwroot/requirements.txt && exec gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
