@@ -4,7 +4,7 @@ import copy
 import json
 import threading
 import uuid
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError, as_completed
 from datetime import UTC, datetime, timedelta
 from queue import Empty, Queue
 from typing import Any
@@ -16,7 +16,14 @@ from .config import Config
 from .database import Base, SessionLocal, engine, ensure_schema
 from .models import Event, ScrapeRun
 from .scrapers.base import ScrapedEvent
-from .scrapers.html_event_scraper import make_semantic_key
+from .scrapers.html_event_scraper import (
+    is_listing_like_event_url,
+    is_low_quality_title,
+    looks_like_date_bucket,
+    looks_like_date_title,
+    make_semantic_key,
+    normalize_text,
+)
 from .scrapers.sample_scraper import SampleHongKongScraper
 from .scrapers.sources import build_scrapers, selected_sources
 
@@ -28,6 +35,7 @@ SCRAPE_JOBS: dict[str, dict[str, Any]] = {}
 LAST_COMPLETED_REPORT: dict[str, Any] | None = None
 WORKER_STARTED = False
 TRUSTED_SOURCE_ALIASES = {
+    "urbtix-open-data": {"urbtix-open-data", "urbtix open data"},
     "discover-hk": {"discover-hk", "discover hong kong"},
     "hongkong-cheapo": {"hongkong-cheapo", "hong kong cheapo"},
     "timeout-hk": {"timeout-hk", "time out hong kong"},
@@ -44,6 +52,13 @@ def upsert_event(scraped: ScrapedEvent, category: str, quality_score: int) -> Ev
     ensure_schema()
     with SessionLocal() as session:
         existing = session.scalar(select(Event).where(Event.external_id == scraped.external_id))
+        if not existing and scraped.source_url:
+            existing = session.scalar(
+                select(Event)
+                .where(Event.source_url == scraped.source_url)
+                .where(func.lower(Event.source_name) == normalize_source_name(scraped.source_name))
+                .order_by(Event.scraped_at_utc.desc())
+            )
 
         if existing:
             target = existing
@@ -51,6 +66,7 @@ def upsert_event(scraped: ScrapedEvent, category: str, quality_score: int) -> Ev
             target = Event(external_id=scraped.external_id)
             session.add(target)
 
+        target.external_id = scraped.external_id
         target.name = scraped.name
         target.category = category
         target.description = scraped.description
@@ -100,89 +116,104 @@ def run_scrape_detailed(
     used_sample_fallback = False
     scrapers = build_scrapers()
     sources_total = len(scrapers)
+    max_workers = max(1, min(Config.SCRAPE_MAX_PARALLEL_SOURCES, sources_total or 1))
+    completed_sources = 0
 
-    for index, scraper in enumerate(scrapers, start=1):
-        source_name = getattr(scraper, "source_name", f"source-{index}")
-        if progress_callback:
-            progress_callback(
-                {
-                    "current": index,
-                    "total": sources_total,
-                    "message": f"Checking {index} of {sources_total}: {source_name}",
-                    "source_name": source_name,
-                }
-            )
-
-        source_info = {
-            "source_name": source_name,
-            "fetched": 0,
-            "processed": 0,
-            "skipped_past": 0,
-            "skipped_duplicate": 0,
-            "skipped_category": 0,
-            "rejected_quality": 0,
-            "status": "ok",
-            "kept": [],
-            "rejected": [],
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            executor.submit(fetch_with_retry, scraper): (index, scraper)
+            for index, scraper in enumerate(scrapers, start=1)
         }
 
-        try:
-            raw_events = fetch_with_retry(scraper)
-        except Exception as exc:
-            failed_sources += 1
-            source_info["status"] = "failed"
-            source_info["error"] = str(exc)
+        for future in as_completed(future_map):
+            index, scraper = future_map[future]
+            source_name = getattr(scraper, "source_name", f"source-{index}")
+            completed_sources += 1
+            if progress_callback:
+                progress_callback(
+                    {
+                        "current": completed_sources,
+                        "total": sources_total,
+                        "message": f"Checked {completed_sources} of {sources_total}: {source_name}",
+                        "source_name": source_name,
+                    }
+                )
+
+            source_info = {
+                "source_index": index,
+                "source_name": source_name,
+                "fetched": 0,
+                "processed": 0,
+                "skipped_past": 0,
+                "skipped_duplicate": 0,
+                "skipped_category": 0,
+                "rejected_quality": 0,
+                "status": "ok",
+                "kept": [],
+                "rejected": [],
+            }
+
+            try:
+                raw_events = future.result()
+            except Exception as exc:
+                failed_sources += 1
+                source_info["status"] = "failed"
+                source_info["error"] = str(exc)
+                source_reports.append(source_info)
+                continue
+
+            source_info["fetched"] = len(raw_events)
+            if not raw_events:
+                empty_sources += 1
+                source_info["status"] = "empty"
+                source_reports.append(source_info)
+                continue
+
+            seen_semantic: set[tuple] = set()
+            for scraped in raw_events:
+                evaluation = evaluate_event(scraped)
+                if evaluation["rejected"]:
+                    rejected_events += 1
+                    source_info["rejected_quality"] += 1
+                    source_info["rejected"].append(event_debug_payload(scraped, evaluation))
+                    continue
+
+                if scraped.start_time_utc < utcnow_naive() - timedelta(days=1):
+                    source_info["skipped_past"] += 1
+                    source_info["rejected"].append(event_debug_payload(scraped, {"score": 0, "reasons": ["past_event"], "rejected": True}))
+                    rejected_events += 1
+                    continue
+
+                semantic_key = make_semantic_key(scraped)
+                if semantic_key in seen_semantic:
+                    source_info["skipped_duplicate"] += 1
+                    source_info["rejected"].append(event_debug_payload(scraped, {"score": evaluation["score"], "reasons": ["duplicate_in_source"], "rejected": True}))
+                    rejected_events += 1
+                    continue
+                seen_semantic.add(semantic_key)
+
+                category = infer_category(scraped.name, scraped.description, scraped.source_name)
+                if not should_keep_category(category):
+                    source_info["skipped_category"] += 1
+                    source_info["rejected"].append(event_debug_payload(scraped, {"score": evaluation["score"], "reasons": ["category_filtered"], "rejected": True, "category": category}))
+                    rejected_events += 1
+                    continue
+
+                quality_score = evaluation["score"]
+                upsert_event(scraped, category=category, quality_score=quality_score)
+                inserted_or_updated += 1
+                source_info["processed"] += 1
+                source_info["kept"].append(event_debug_payload(scraped, {"score": quality_score, "reasons": evaluation["reasons"], "category": category, "rejected": False}))
+
+            if source_info["processed"] == 0 and source_info["fetched"] > 0:
+                empty_sources += 1
+                source_info["status"] = "empty_after_filters"
+
             source_reports.append(source_info)
-            continue
 
-        source_info["fetched"] = len(raw_events)
-        if not raw_events:
-            empty_sources += 1
-            source_info["status"] = "empty"
-            source_reports.append(source_info)
-            continue
-
-        seen_semantic: set[tuple] = set()
-        for scraped in raw_events:
-            evaluation = evaluate_event(scraped)
-            if evaluation["rejected"]:
-                rejected_events += 1
-                source_info["rejected_quality"] += 1
-                source_info["rejected"].append(event_debug_payload(scraped, evaluation))
-                continue
-
-            if scraped.start_time_utc < utcnow_naive() - timedelta(days=1):
-                source_info["skipped_past"] += 1
-                source_info["rejected"].append(event_debug_payload(scraped, {"score": 0, "reasons": ["past_event"], "rejected": True}))
-                rejected_events += 1
-                continue
-
-            semantic_key = make_semantic_key(scraped)
-            if semantic_key in seen_semantic:
-                source_info["skipped_duplicate"] += 1
-                source_info["rejected"].append(event_debug_payload(scraped, {"score": evaluation["score"], "reasons": ["duplicate_in_source"], "rejected": True}))
-                rejected_events += 1
-                continue
-            seen_semantic.add(semantic_key)
-
-            category = infer_category(scraped.name, scraped.description, scraped.source_name)
-            if not should_keep_category(category):
-                source_info["skipped_category"] += 1
-                source_info["rejected"].append(event_debug_payload(scraped, {"score": evaluation["score"], "reasons": ["category_filtered"], "rejected": True, "category": category}))
-                rejected_events += 1
-                continue
-
-            quality_score = evaluation["score"]
-            upsert_event(scraped, category=category, quality_score=quality_score)
-            inserted_or_updated += 1
-            source_info["processed"] += 1
-            source_info["kept"].append(event_debug_payload(scraped, {"score": quality_score, "reasons": evaluation["reasons"], "category": category, "rejected": False}))
-
-        if source_info["processed"] == 0 and source_info["fetched"] > 0:
-            empty_sources += 1
-            source_info["status"] = "empty_after_filters"
-
-        source_reports.append(source_info)
+    source_reports.sort(key=lambda item: item.get("source_index", 0))
+    for source_info in source_reports:
+        source_info.pop("source_index", None)
 
     if inserted_or_updated == 0 and not Config.SCRAPE_INCLUDE_SAMPLE:
         sample_count = seed_sample_events()
@@ -204,12 +235,15 @@ def run_scrape_detailed(
                 }
             )
 
+    purged_invalid = purge_invalid_events()
+
     report = {
         "processed": inserted_or_updated,
         "failed_sources": failed_sources,
         "empty_sources": empty_sources,
         "sources_total": sources_total,
         "rejected_events": rejected_events,
+        "purged_invalid": purged_invalid,
         "sources": source_reports,
         "used_sample_fallback": used_sample_fallback,
         "triggered_by": triggered_by,
@@ -383,6 +417,36 @@ def seed_sample_events() -> int:
         upsert_event(scraped, category=category, quality_score=90)
         inserted += 1
     return inserted
+
+
+def purge_invalid_events() -> int:
+    ensure_schema()
+    removed = 0
+    with SessionLocal() as session:
+        rows = list(session.scalars(select(Event)).all())
+        for row in rows:
+            if not is_invalid_persisted_event(row):
+                continue
+            session.delete(row)
+            removed += 1
+        if removed:
+            session.commit()
+            clear_event_cache()
+    return removed
+
+
+def is_invalid_persisted_event(row: Event) -> bool:
+    title = normalize_text(row.name)
+    if not title:
+        return True
+    if is_low_quality_title(title) or looks_like_date_bucket(title) or looks_like_date_title(title):
+        return True
+    normalized_source = normalize_source_name(row.source_name)
+    if normalized_source == "hong kong cheapo" and row.source_url and "/events/" not in row.source_url.lower():
+        return True
+    if row.source_url and is_listing_like_event_url(row.source_url):
+        return True
+    return False
 
 
 def source_event_counts_upcoming() -> list[dict[str, Any]]:

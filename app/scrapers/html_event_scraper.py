@@ -51,11 +51,16 @@ LOW_QUALITY_TITLES = {
     "things to do",
     "what's on",
     "whats on",
+    "read more",
+    "staff recommendation",
 }
 LOW_QUALITY_TITLE_PATTERNS = (
     r"^best\s+",
     r"^events?\s+in\s+hong\s+kong$",
     r"^hong\s+kong\s+events?$",
+    r"^events?\s*[|:-]\s+",
+    r"^(?:early|mid|late)\s+[a-z]{3,9}$",
+    r"^(?:this|next)\s+(?:week|weekend|month)$",
     r"\bwhere to go\b",
     r"\bguide\b",
     r"\bthings to do\b",
@@ -79,6 +84,20 @@ DATE_ATTRIBUTE_NAMES = (
     "data-event-date",
     "content",
 )
+MONTH_SLUGS = {
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+}
 
 
 class JsonLdEventScraper(BaseScraper):
@@ -161,6 +180,8 @@ class JsonLdEventScraper(BaseScraper):
             ticket_url=ticket_url,
             discount_text=discount_text,
             discount_url=ticket_url if discount_text else "",
+            source_url=page_url,
+            price_text=extract_price_text(f"{name} {description}"),
         )
 
 
@@ -217,6 +238,8 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
             if parsed.scheme not in {"http", "https"}:
                 continue
             if parsed.netloc != page_domain:
+                continue
+            if is_listing_like_event_url(absolute):
                 continue
 
             token_bag = f"{parsed.path.lower()} {text}"
@@ -277,12 +300,17 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
         if not start_time:
             return None
 
-        paragraphs = [normalize_text(tag.get_text(" ", strip=True)) for tag in root.find_all(["p", "li"], limit=6)]
+        paragraphs = [normalize_text(tag.get_text(" ", strip=True)) for tag in root.find_all(["p", "li"], limit=8)]
         description = " ".join(text for text in paragraphs if text)[:500]
+        if not description:
+            meta_description = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", property="og:description")
+            if isinstance(meta_description, Tag):
+                description = normalize_text(meta_description.get("content") or "")[:500]
         location_name = extract_location_from_node(root)
         page_text = root.get_text(" ", strip=True)
         price_text = extract_price_text(page_text)
         discount_text = extract_discount_text(page_text)
+        ticket_url = extract_preferred_ticket_url(root, page_url)
 
         external_id = stable_external_id(self.source_name, page_url, title, start_time)
         return ScrapedEvent(
@@ -296,26 +324,24 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
             map_url=build_map_url(location_name, ""),
             start_time_utc=start_time,
             end_time_utc=None,
-            ticket_url=page_url,
+            ticket_url=ticket_url,
             discount_text=discount_text,
-            discount_url=page_url if discount_text else "",
+            discount_url=ticket_url if discount_text and ticket_url else "",
             source_url=page_url,
             price_text=price_text,
         )
 
     def _card_to_event(self, page_url: str, node: Tag) -> ScrapedEvent | None:
-        title_tag = node.find(["h1", "h2", "h3", "h4", "a"])
-        if not title_tag:
-            return None
-
-        title = normalize_text(title_tag.get_text(" ", strip=True))
-        if len(title) < 4:
-            return None
-        if is_low_quality_title(title):
+        title_tag, title = find_title_candidate(node)
+        if title_tag is None:
             return None
 
         event_url = ""
-        link_tag = node.find("a", href=True)
+        link_tag = title_tag if title_tag.name == "a" and title_tag.get("href") else title_tag.find("a", href=True)
+        if link_tag is None:
+            link_tag = find_best_anchor_for_title(node, title)
+        if link_tag is None:
+            link_tag = node.find("a", href=True)
         if link_tag:
             event_url = sanitize_url(urljoin(page_url, link_tag["href"].strip()))
 
@@ -331,7 +357,7 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
         for cls in ("location", "venue", "place", "address"):
             loc = node.find(attrs={"class": re.compile(cls, re.I)})
             if loc:
-                location_name = normalize_text(loc.get_text(" ", strip=True))
+                location_name = clean_location_text(loc.get_text(" ", strip=True))
                 break
 
         external_id = stable_external_id(self.source_name, event_url or page_url, title, start_time)
@@ -387,15 +413,25 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
 
 class ConfiguredSourceScraper(MultiStrategyEventScraper):
     def __init__(self, definition):
-        super().__init__(source_name=definition.key, urls=definition.urls)
+        super().__init__(source_name=definition.key, urls=definition.urls, max_detail_pages=definition.max_detail_pages)
         self.definition = definition
 
     def _discover_event_links(self, page_url: str, html: str) -> list[str]:
         links = super()._discover_event_links(page_url, html)
         markers = self.definition.detail_markers
         if not markers:
-            return links
-        filtered = [link for link in links if any(marker in link.lower() for marker in markers)]
+            filtered = links
+        else:
+            filtered = [link for link in links if any(marker in link.lower() for marker in markers)]
+        required = self.definition.required_url_substrings
+        if required:
+            filtered = [link for link in filtered if any(token in link.lower() for token in required)]
+        if filtered:
+            return filtered
+        if required:
+            required_fallback = [link for link in links if any(token in link.lower() for token in required)]
+            if required_fallback:
+                return required_fallback
         return filtered or links
 
     def _extract_generic_cards(self, page_url: str, html: str) -> list[ScrapedEvent]:
@@ -427,7 +463,7 @@ class ConfiguredSourceScraper(MultiStrategyEventScraper):
                 for selector in self.definition.location_selectors:
                     tag = root.select_one(selector)
                     if tag:
-                        location_name = normalize_text(tag.get_text(" ", strip=True))
+                        location_name = clean_location_text(tag.get_text(" ", strip=True))
                         break
             if not location_name:
                 location_name = extract_location_from_node(root)
@@ -442,16 +478,19 @@ class ConfiguredSourceScraper(MultiStrategyEventScraper):
         return event
 
     def _card_to_event(self, page_url: str, node: Tag) -> ScrapedEvent | None:
-        title_tag = node.select_one(self.definition.title_selector) if self.definition.title_selector else None
+        title_tag, title = find_title_candidate(node, self.definition.title_selector)
         if title_tag is None:
             return super()._card_to_event(page_url, node)
 
-        title = normalize_text(title_tag.get_text(" ", strip=True))
-        if len(title) < 4 or is_low_quality_title(title):
-            return None
-
-        link_tag = title_tag if title_tag.name == "a" and title_tag.get("href") else node.find("a", href=True)
+        link_tag = title_tag if title_tag.name == "a" and title_tag.get("href") else title_tag.find("a", href=True)
+        if link_tag is None:
+            link_tag = find_best_anchor_for_title(node, title)
+        if link_tag is None:
+            link_tag = node.find("a", href=True)
         event_url = sanitize_url(urljoin(page_url, link_tag["href"].strip())) if link_tag and link_tag.get("href") else ""
+        if self.definition.required_url_substrings and event_url:
+            if not any(token in event_url.lower() for token in self.definition.required_url_substrings):
+                return None
 
         start_time = self._parse_card_start(node)
         if not start_time:
@@ -474,7 +513,7 @@ class ConfiguredSourceScraper(MultiStrategyEventScraper):
         for selector in self.definition.location_selectors:
             tag = node.select_one(selector)
             if tag:
-                location_name = normalize_text(tag.get_text(" ", strip=True))
+                location_name = clean_location_text(tag.get_text(" ", strip=True))
                 break
 
         discount_text = extract_discount_text(description)
@@ -556,7 +595,7 @@ def iter_jsonld_event_objects(raw_json: str):
 
 def extract_location(raw_location) -> tuple[str, str]:
     if isinstance(raw_location, str):
-        return normalize_text(raw_location), ""
+        return clean_location_text(raw_location), ""
 
     if not isinstance(raw_location, dict):
         return "", ""
@@ -575,7 +614,7 @@ def extract_location(raw_location) -> tuple[str, str]:
     else:
         address_str = ""
 
-    return name, address_str
+    return clean_location_text(name), clean_location_text(address_str)
 
 
 def extract_organizer(raw_organizer) -> str:
@@ -713,7 +752,7 @@ def extract_location_from_node(node: Tag) -> str:
     ):
         tag = node.select_one(selector)
         if tag:
-            text = normalize_text(tag.get_text(" ", strip=True))
+            text = clean_location_text(tag.get_text(" ", strip=True))
             if text:
                 return text
 
@@ -724,6 +763,149 @@ def extract_location_from_node(node: Tag) -> str:
         flags=re.I,
     )
     if match:
-        location = normalize_text(match.group(1))
+        location = clean_location_text(match.group(1))
         return re.split(r"\b(?:tickets?|price|free|register|more info)\b", location, maxsplit=1, flags=re.I)[0].strip(" ,:-")
     return ""
+
+
+def clean_location_text(value: str) -> str:
+    text = normalize_text(value)
+    if not text:
+        return ""
+
+    text = re.sub(r"\b\d+(?:\.\d+)?\s*km\b", "", text, flags=re.I).strip(" ,:-")
+    if not text:
+        return ""
+    if len(text) > 60:
+        return ""
+    if text[0].islower():
+        return ""
+    return text
+
+
+def extract_preferred_ticket_url(node: Tag, page_url: str) -> str:
+    page_domain = urlparse(page_url).netloc
+    preferred_markers = ("official", "ticket", "tickets", "book", "booking", "register", "signup", "buy")
+
+    fallback = page_url
+    for anchor in node.find_all("a", href=True):
+        href = sanitize_url(urljoin(page_url, anchor["href"].strip()))
+        if not href:
+            continue
+        if fallback == page_url:
+            fallback = href
+
+        anchor_text = normalize_text(anchor.get_text(" ", strip=True)).lower()
+        anchor_domain = urlparse(href).netloc
+        if any(marker in anchor_text for marker in preferred_markers):
+            if anchor_domain and anchor_domain != page_domain:
+                return href
+            if href != page_url:
+                fallback = href
+
+    return fallback
+
+
+def find_title_candidate(node: Tag, preferred_selector: str | None = None) -> tuple[Tag | None, str]:
+    heading_candidates: list[Tag] = []
+    anchor_candidates: list[Tag] = []
+
+    if preferred_selector:
+        for tag in node.select(preferred_selector):
+            if not isinstance(tag, Tag):
+                continue
+            if tag.name in {"h1", "h2", "h3", "h4"} or any(cls in {"entry-title", "card__title"} for cls in tag.get("class", [])):
+                heading_candidates.append(tag)
+            else:
+                anchor_candidates.append(tag)
+
+    for tag in node.find_all(["h1", "h2", "h3", "h4"], limit=8):
+        if isinstance(tag, Tag):
+            heading_candidates.append(tag)
+    for tag in node.find_all("a", href=True, limit=12):
+        if isinstance(tag, Tag):
+            anchor_candidates.append(tag)
+
+    seen: set[int] = set()
+    for tag in heading_candidates + anchor_candidates:
+        if id(tag) in seen:
+            continue
+        seen.add(id(tag))
+        if tag.name == "a" and is_non_event_taxonomy_url(tag.get("href") or ""):
+            continue
+
+        text = normalize_text(tag.get_text(" ", strip=True))
+        if len(text) < 4 or is_low_quality_title(text):
+            continue
+        if looks_like_date_bucket(text) or looks_like_date_title(text):
+            continue
+        return tag, text
+
+    return None, ""
+
+
+def find_best_anchor_for_title(node: Tag, title: str) -> Tag | None:
+    normalized_title = normalize_text(title).lower()
+    if not normalized_title:
+        return None
+
+    best_match: Tag | None = None
+    for anchor in node.find_all("a", href=True):
+        if is_non_event_taxonomy_url(anchor.get("href") or ""):
+            continue
+        anchor_text = normalize_text(anchor.get_text(" ", strip=True)).lower()
+        if not anchor_text or looks_like_date_bucket(anchor_text) or looks_like_date_title(anchor_text):
+            continue
+        if anchor_text == normalized_title or normalized_title in anchor_text or anchor_text in normalized_title:
+            best_match = anchor
+            break
+    return best_match
+
+
+def is_non_event_taxonomy_url(url: str) -> bool:
+    lowered = url.lower()
+    return any(marker in lowered for marker in ("/event-category/", "/events/location/", "/tag/", "/category/"))
+
+
+def is_listing_like_event_url(url: str) -> bool:
+    parsed = urlparse(url)
+    path = (parsed.path or "").lower().rstrip("/")
+    if parsed.fragment and path in {"", "/events"} | {f"/events/{month}" for month in MONTH_SLUGS}:
+        return True
+    if path in {"", "/events"}:
+        return True
+    if path.startswith("/events/page/") or path.startswith("/events/location/"):
+        return True
+    if path.startswith("/event-category/") or path.startswith("/category/") or path.startswith("/tag/"):
+        return True
+    if not path.startswith("/events/"):
+        return False
+
+    tail = path[len("/events/") :].strip("/")
+    if not tail:
+        return True
+    if tail in {"this-week", "this-month", "next-month"}:
+        return True
+    return tail in MONTH_SLUGS
+
+
+def looks_like_date_bucket(text: str) -> bool:
+    normalized = normalize_text(text).lower()
+    return bool(re.fullmatch(r"(?:early|mid|late)(?:\s*[~/\-]\s*(?:early|mid|late))?\s+[a-z]{3,9}", normalized))
+
+
+def looks_like_date_title(text: str) -> bool:
+    normalized = normalize_text(text)
+    compact = re.sub(r"\s+", " ", normalized).strip()
+    if not compact:
+        return False
+
+    patterns = (
+        r"^(?:mon|tue|tues|wed|thu|thur|fri|sat|sun)(?:day)?,?\s+[A-Za-z]{3,9}\s+\d{1,2}(?:,?\s+\d{4})?(?:,?\s+\d{1,2}:\d{2}\s*(?:am|pm))?$",
+        r"^(?:mon|tue|tues|wed|thu|thur|fri|sat|sun)(?:day)?,?\s+\d{1,2}\s+[A-Za-z]{3,9}(?:\s+\d{4})?(?:,?\s+\d{1,2}:\d{2}\s*(?:am|pm))?$",
+        r"^[A-Za-z]{3,9}\s+\d{1,2}(?:,?\s+\d{4})?$",
+        r"^[A-Za-z]{3,9}\s+\d{1,2}\s*[-~/]\s*[A-Za-z]{3,9}\s+\d{1,2}(?:\s+\d{4})?$",
+        r"^\d{1,2}\s+[A-Za-z]{3,9}\s*[-~/]\s*\d{1,2}\s+[A-Za-z]{3,9}(?:\s+\d{4})?$",
+        r"^[A-Za-z]{3,9}\s+\d{4}$",
+    )
+    return any(re.fullmatch(pattern, compact, flags=re.I) for pattern in patterns)
