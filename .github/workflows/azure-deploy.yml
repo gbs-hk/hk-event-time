@@ -46,29 +46,8 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
 
-      - name: Configure Azure Web App deployment settings
-        run: |
-          az webapp config appsettings set \
-            --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false DATABASE_URL=sqlite:////home/site/wwwroot/events.db FLASK_ENV=production USE_RELOADER=0
-          az webapp config set \
-            --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --linux-fx-version "PYTHON|3.10"
-
-      - name: Wait for SCM restart to settle
-        run: sleep 90
-
       - name: Deploy prepared artifact to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
-      - name: Configure FastAPI startup command
-        run: |
-          az webapp config set \
-            --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --startup-file "bash -c \"export PYTHONPATH=/home/site/wwwroot/.python_packages/lib/site-packages:\$PYTHONPATH && exec python -m gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
