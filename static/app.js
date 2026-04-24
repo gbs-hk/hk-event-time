@@ -94,8 +94,14 @@ function buildEventsUrl(fetchInfo) {
   return `/api/events?${params.toString()}`;
 }
 
+function isPlaceholderOrInvalidUrl(url) {
+  if (!url) return true;
+  const lower = url.toLowerCase();
+  return lower.includes("example.com") || lower.includes("example.org") || lower.includes("example.net");
+}
+
 function setLink(linkEl, href, fallbackText) {
-  if (href) {
+  if (href && !isPlaceholderOrInvalidUrl(href)) {
     linkEl.href = href;
     linkEl.style.display = "inline";
   } else {

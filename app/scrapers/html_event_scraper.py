@@ -65,7 +65,7 @@ class JsonLdEventScraper(BaseScraper):
     def _fetch_html(self, url: str) -> str:
         # Use a session for cookie persistence and better connection handling
         session = requests.Session()
-        
+
         # More realistic browser headers to avoid blocking
         headers = {
             "User-Agent": Config.SCRAPE_USER_AGENT,
@@ -75,11 +75,11 @@ class JsonLdEventScraper(BaseScraper):
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
-        
+
         # Retry logic with exponential backoff
         max_retries = 3
         retry_delay = 1
-        
+
         for attempt in range(max_retries):
             try:
                 response = session.get(
@@ -97,7 +97,8 @@ class JsonLdEventScraper(BaseScraper):
             except requests.exceptions.RequestException:
                 if attempt < max_retries - 1:
                     import time
-                    time.sleep(retry_delay * (2 ** attempt))
+
+                    time.sleep(retry_delay * (2**attempt))
                 else:
                     return ""
         return ""
@@ -132,7 +133,9 @@ class JsonLdEventScraper(BaseScraper):
         if not start_dt:
             return None
 
-        end_dt = parse_datetime_to_utc(item.get("endDate")) if item.get("endDate") else None
+        end_dt = (
+            parse_datetime_to_utc(item.get("endDate")) if item.get("endDate") else None
+        )
 
         location_name, location_address = extract_location(item.get("location"))
         ticket_url = extract_ticket_url(item.get("offers"))
@@ -163,11 +166,33 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
     1. JSON-LD Event schema
     2. Generic listing-card extraction
     3. Event-like detail links + JSON-LD extraction
+    4. Month/calendar pagination to discover future events
     """
 
-    def __init__(self, source_name: str, urls: list[str], max_detail_pages: int | None = None):
+    MONTH_LINK_MARKERS = (
+        "next",
+        "month",
+        "calendar",
+        "future",
+        "upcoming",
+        "page",
+        "events",
+    )
+
+    def __init__(
+        self,
+        source_name: str,
+        urls: list[str],
+        max_detail_pages: int | None = None,
+        max_month_pages: int | None = None,
+    ):
         super().__init__(source_name, urls)
-        self.max_detail_pages = max_detail_pages or Config.SCRAPE_MAX_DETAIL_PAGES_PER_SOURCE
+        self.max_detail_pages = (
+            max_detail_pages or Config.SCRAPE_MAX_DETAIL_PAGES_PER_SOURCE
+        )
+        self.max_month_pages = (
+            max_month_pages or Config.SCRAPE_MAX_MONTH_PAGES_PER_SOURCE
+        )
 
     def fetch(self) -> list[ScrapedEvent]:
         events: list[ScrapedEvent] = []
@@ -191,6 +216,15 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
                     continue
                 events.extend(self._extract_from_html(detail_url, detail_html))
 
+            # Strategy 4: follow month/calendar pagination links for future events
+            month_links = self._discover_month_links(url, html)
+            for month_url in month_links[: self.max_month_pages]:
+                month_html = self._fetch_html(month_url)
+                if not month_html:
+                    continue
+                events.extend(self._extract_from_html(month_url, month_html))
+                events.extend(self._extract_generic_cards(month_url, month_html))
+
         return dedupe_events(events)
 
     def _discover_event_links(self, page_url: str, html: str) -> list[str]:
@@ -211,6 +245,74 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
 
             token_bag = f"{parsed.path.lower()} {text}"
             if any(marker in token_bag for marker in EVENT_LINK_MARKERS):
+                links.append(absolute)
+
+        # Preserve order while deduping
+        seen = set()
+        unique_links = []
+        for link in links:
+            if link not in seen:
+                unique_links.append(link)
+                seen.add(link)
+        return unique_links
+
+    def _discover_month_links(self, page_url: str, html: str) -> list[str]:
+        """Find links to future months, calendar views, or paginated event pages."""
+        soup = BeautifulSoup(html, "html.parser")
+        links: list[str] = []
+        page_domain = urlparse(page_url).netloc
+
+        for anchor in soup.find_all("a", href=True):
+            href = anchor["href"].strip()
+            text = anchor.get_text(" ", strip=True).lower()
+            absolute = urljoin(page_url, href)
+            parsed = urlparse(absolute)
+
+            if parsed.scheme not in {"http", "https"}:
+                continue
+            if parsed.netloc != page_domain:
+                continue
+
+            # Skip links already in self.urls or the current page
+            if absolute == page_url or absolute in self.urls:
+                continue
+
+            token_bag = f"{parsed.path.lower()} {text}"
+            if any(marker in token_bag for marker in self.MONTH_LINK_MARKERS):
+                links.append(absolute)
+
+        # Preserve order while deduping
+        seen = set()
+        unique_links = []
+        for link in links:
+            if link not in seen:
+                unique_links.append(link)
+                seen.add(link)
+        return unique_links
+
+    def _discover_month_links(self, page_url: str, html: str) -> list[str]:
+        """Find links to future months, calendar views, or paginated event pages."""
+        soup = BeautifulSoup(html, "html.parser")
+        links: list[str] = []
+        page_domain = urlparse(page_url).netloc
+
+        for anchor in soup.find_all("a", href=True):
+            href = anchor["href"].strip()
+            text = anchor.get_text(" ", strip=True).lower()
+            absolute = urljoin(page_url, href)
+            parsed = urlparse(absolute)
+
+            if parsed.scheme not in {"http", "https"}:
+                continue
+            if parsed.netloc != page_domain:
+                continue
+
+            # Skip links already in self.urls or the current page
+            if absolute == page_url or absolute in self.urls:
+                continue
+
+            token_bag = f"{parsed.path.lower()} {text}"
+            if any(marker in token_bag for marker in self.MONTH_LINK_MARKERS):
                 links.append(absolute)
 
         # Preserve order while deduping
@@ -268,7 +370,9 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
             return None
 
         description_tag = node.find("p")
-        description = normalize_text(description_tag.get_text(" ", strip=True) if description_tag else "")
+        description = normalize_text(
+            description_tag.get_text(" ", strip=True) if description_tag else ""
+        )
 
         location_name = ""
         for cls in ("location", "venue", "place", "address"):
@@ -277,7 +381,9 @@ class MultiStrategyEventScraper(JsonLdEventScraper):
                 location_name = normalize_text(loc.get_text(" ", strip=True))
                 break
 
-        external_id = stable_external_id(self.source_name, event_url or page_url, title, start_time)
+        external_id = stable_external_id(
+            self.source_name, event_url or page_url, title, start_time
+        )
         combined_text = f"{title} {description}"
         discount_text = extract_discount_text(combined_text)
         return ScrapedEvent(
@@ -365,7 +471,9 @@ def iter_jsonld_event_objects(raw_json: str):
         item_type = current.get("@type")
         if isinstance(item_type, str) and item_type.lower() == "event":
             yield current
-        elif isinstance(item_type, list) and any(str(t).lower() == "event" for t in item_type):
+        elif isinstance(item_type, list) and any(
+            str(t).lower() == "event" for t in item_type
+        ):
             yield current
 
         for nested_key in ("@graph", "itemListElement", "mainEntity", "events"):
@@ -431,8 +539,12 @@ def build_map_url(location_name: str, location_address: str) -> str:
     return f"https://maps.google.com/?q={quote_plus(query)}"
 
 
-def stable_external_id(source_name: str, page_url: str, name: str, start_dt_utc: datetime) -> str:
-    digest = hashlib.sha256(f"{source_name}|{page_url}|{name}|{start_dt_utc.isoformat()}".encode("utf-8")).hexdigest()[:32]
+def stable_external_id(
+    source_name: str, page_url: str, name: str, start_dt_utc: datetime
+) -> str:
+    digest = hashlib.sha256(
+        f"{source_name}|{page_url}|{name}|{start_dt_utc.isoformat()}".encode("utf-8")
+    ).hexdigest()[:32]
     return f"{source_name}-{digest}"
 
 
@@ -488,7 +600,9 @@ def is_low_quality_title(title: str) -> bool:
 
 def make_semantic_key(event: ScrapedEvent) -> tuple[str, str, datetime]:
     normalized_name = re.sub(r"[^a-z0-9]+", " ", event.name.lower()).strip()
-    normalized_location = re.sub(r"[^a-z0-9]+", " ", event.location_name.lower()).strip()
+    normalized_location = re.sub(
+        r"[^a-z0-9]+", " ", event.location_name.lower()
+    ).strip()
     start_bucket = event.start_time_utc.replace(minute=0, second=0, microsecond=0)
     return normalized_name, normalized_location, start_bucket
 

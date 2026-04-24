@@ -10,86 +10,112 @@ from .sample_scraper import SampleHongKongScraper
 ALL_SOURCE_URLS: dict[str, list[str]] = {
     "discover-hk": [
         "https://www.discoverhongkong.com/eng/explore/events.html",
-        "https://www.discoverhongkong.com",
+        "https://www.discoverhongkong.com/eng/explore/events/festivals.html",
+        "https://www.discoverhongkong.com/eng/explore/events.html?month=next",
     ],
     "hongkong-cheapo": [
         "https://hongkongcheapo.com/events",
+        "https://hongkongcheapo.com/events-calendar",
     ],
     "timeout-hk": [
         "https://www.timeout.com/hong-kong",
         "https://www.timeout.com/hong-kong/things-to-do",
+        "https://www.timeout.com/hong-kong/things-to-do/calendar",
     ],
     "brandhk": [
         "https://www.brandhk.gov.hk",
+        "https://www.brandhk.gov.hk/en/whats-on",
     ],
     "meetup-hk": [
         "https://www.meetup.com/cities/hk/hong_kong",
+        "https://www.meetup.com/cities/hk/hong_kong/events",
     ],
     "eventbrite-hk": [
         "https://www.eventbrite.com/d/hong-kong-sar--hong-kong",
+        "https://www.eventbrite.com/d/hong-kong-sar--hong-kong/?page=2",
     ],
     "internations-hk": [
         "https://www.internations.org/hong-kong-expats",
+        "https://www.internations.org/hong-kong-expats/events",
     ],
     "letseventhk": [
         "https://www.letseventhk.com",
+        "https://www.letseventhk.com/events",
     ],
     "lcsd": [
         "https://www.lcsd.gov.hk",
+        "https://www.lcsd.gov.hk/en/ce/calendar.html",
     ],
     "hkcc": [
         "https://www.hkcc.gov.hk",
+        "https://www.hkcc.gov.hk/en/whatson",
     ],
     "hkculturalcentre": [
         "https://www.hkculturalcentre.gov.hk",
+        "https://www.hkculturalcentre.gov.hk/en/programme",
     ],
     "hkcec": [
         "https://www.hkcec.com/en/event-calendar",
+        "https://www.hkcec.com/en/whats-on",
     ],
     "hktb-partnernet": [
         "https://partnernet.hktb.com/en/destination/events_festivals",
     ],
     "lan-kwai-fong": [
         "https://www.lankwaifong.com",
+        "https://www.lankwaifong.com/events",
     ],
     "cassio-hk": [
         "https://www.cassiohk.com",
+        "https://www.cassiohk.com/events",
     ],
     "dragon-i": [
         "https://www.dragon-i.com.hk",
+        "https://www.dragon-i.com.hk/events",
     ],
     "trilogy-hk": [
         "https://www.trilogyhk.com",
+        "https://www.trilogyhk.com/events",
     ],
     "zeus-lkf": [
         "https://www.zeus-lkf.com",
+        "https://www.zeus-lkf.com/events",
     ],
     "oma-hk": [
         "https://www.omahk.com",
+        "https://www.omahk.com/events",
     ],
     "boomerang-hk": [
         "https://www.boomeranghk.com",
+        "https://www.boomeranghk.com/events",
     ],
     "maggie-choos": [
         "https://www.maggiechoos.com/hongkong",
+        "https://www.maggiechoos.com/hongkong/events",
     ],
     "iron-fairies": [
         "https://www.theironfairies.com/hong-kong",
+        "https://www.theironfairies.com/hong-kong/events",
     ],
     "sahara-lkf": [
         "https://www.saharalkf.com",
+        "https://www.saharalkf.com/events",
     ],
     "qing-hk": [
         "https://www.qing.hk",
+        "https://www.qing.hk/events",
     ],
     "china-bar-hk": [
         "https://www.chinabarhk.com",
+        "https://www.chinabarhk.com/events",
     ],
     "hongkong-pubcrawl": [
         "https://www.hongkongpubcrawl.com",
+        "https://www.hongkongpubcrawl.com/events",
     ],
     "shuffle-hk": [
         "https://www.shuffle.hk",
+        "https://www.shuffle.hk/events",
     ],
 }
 
@@ -138,7 +164,11 @@ LKF_NIGHTLIFE_SOURCE_KEYS = (
 def selected_sources() -> dict[str, list[str]]:
     mode = Config.SCRAPE_SOURCE_MODE.strip().lower()
     if mode == "lkf_nightlife":
-        sources = {key: ALL_SOURCE_URLS[key] for key in LKF_NIGHTLIFE_SOURCE_KEYS if key in ALL_SOURCE_URLS}
+        sources = {
+            key: ALL_SOURCE_URLS[key]
+            for key in LKF_NIGHTLIFE_SOURCE_KEYS
+            if key in ALL_SOURCE_URLS
+        }
         # Include reliable sources for better event coverage
         sources.update(RELIABLE_SOURCES)
         return sources

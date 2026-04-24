@@ -17,7 +17,6 @@ class SampleHongKongScraper(BaseScraper):
     def fetch(self) -> list[ScrapedEvent]:
         now = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
         return [
-            # Music events
             ScrapedEvent(
                 external_id="sample-lan-kwai-fong-dj-night",
                 name="Lan Kwai Fong DJ Night",
@@ -29,9 +28,9 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=Lan+Kwai+Fong+Hong+Kong",
                 start_time_utc=now + timedelta(days=2, hours=12),
                 end_time_utc=now + timedelta(days=2, hours=16),
-                ticket_url="https://example.com/tickets/dj-night",
+                ticket_url="https://www.lankwaifong.com",
                 discount_text="20% early bird until midnight",
-                discount_url="https://example.com/discounts/dj-night",
+                discount_url="https://www.lankwaifong.com",
             ),
             ScrapedEvent(
                 external_id="sample-jazz-club-live",
@@ -44,11 +43,10 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=Blue+Note+Hong+Kong",
                 start_time_utc=now + timedelta(days=5, hours=19),
                 end_time_utc=now + timedelta(days=5, hours=22),
-                ticket_url="https://example.com/tickets/jazz",
+                ticket_url="https://www.bluenotehongkong.com",
                 discount_text="",
                 discount_url="",
             ),
-            # Sports events
             ScrapedEvent(
                 external_id="sample-hk-marathon-training",
                 name="Victoria Harbour Run Club",
@@ -60,7 +58,7 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=Tsim+Sha+Tsui+Promenade",
                 start_time_utc=now + timedelta(days=3, hours=4),
                 end_time_utc=now + timedelta(days=3, hours=6),
-                ticket_url="https://example.com/register/run-club",
+                ticket_url="https://www.hkrunclub.com",
                 discount_text="",
                 discount_url="",
             ),
@@ -75,11 +73,10 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=Victoria+Park+Hong+Kong",
                 start_time_utc=now + timedelta(days=7, hours=10),
                 end_time_utc=now + timedelta(days=7, hours=18),
-                ticket_url="https://example.com/register/basketball",
+                ticket_url="https://www.hkba.org",
                 discount_text="",
                 discount_url="",
             ),
-            # Food & Drink events
             ScrapedEvent(
                 external_id="sample-wine-tasting",
                 name="French Wine Tasting Evening",
@@ -91,9 +88,9 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=IFC+Mall+Hong+Kong",
                 start_time_utc=now + timedelta(days=4, hours=18),
                 end_time_utc=now + timedelta(days=4, hours=21),
-                ticket_url="https://example.com/tickets/wine-tasting",
+                ticket_url="https://www.ifcmall.com",
                 discount_text="10% off for members",
-                discount_url="https://example.com/discounts/wine",
+                discount_url="https://www.ifcmall.com",
             ),
             ScrapedEvent(
                 external_id="sample-food-festival",
@@ -110,7 +107,6 @@ class SampleHongKongScraper(BaseScraper):
                 discount_text="",
                 discount_url="",
             ),
-            # Culture events
             ScrapedEvent(
                 external_id="sample-art-exhibition",
                 name="Contemporary Art Exhibition",
@@ -122,7 +118,7 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=Hong+Kong+Arts+Centre",
                 start_time_utc=now + timedelta(days=1, hours=10),
                 end_time_utc=now + timedelta(days=1, hours=20),
-                ticket_url="https://example.com/tickets/art-exhibition",
+                ticket_url="https://www.hkartscentre.org.hk",
                 discount_text="Free admission on Wednesdays",
                 discount_url="",
             ),
@@ -137,11 +133,10 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=Hong+Kong+Cultural+Centre",
                 start_time_utc=now + timedelta(days=8, hours=19),
                 end_time_utc=now + timedelta(days=8, hours=22),
-                ticket_url="https://example.com/tickets/opera",
+                ticket_url="https://www.lcsd.gov.hk/en/ce/cultureDefinition.html",
                 discount_text="",
                 discount_url="",
             ),
-            # Networking events
             ScrapedEvent(
                 external_id="sample-tech-meetup",
                 name="Startup Founders Networking Night",
@@ -153,7 +148,7 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=The+Hub+Hong+Kong",
                 start_time_utc=now + timedelta(days=4, hours=18),
                 end_time_utc=now + timedelta(days=4, hours=21),
-                ticket_url="https://example.com/register/tech-meetup",
+                ticket_url="https://www.hkstartup.org",
                 discount_text="",
                 discount_url="",
             ),
@@ -168,11 +163,10 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=Sky+Lounge+Central+Hong+Kong",
                 start_time_utc=now + timedelta(days=9, hours=19),
                 end_time_utc=now + timedelta(days=9, hours=23),
-                ticket_url="https://example.com/register/expats",
+                ticket_url="https://www.internations.org/hong-kong-expats/events",
                 discount_text="",
                 discount_url="",
             ),
-            # Party events
             ScrapedEvent(
                 external_id="sample-rooftop-party",
                 name="Rooftop Party with Live DJ",
@@ -184,9 +178,9 @@ class SampleHongKongScraper(BaseScraper):
                 map_url="https://maps.google.com/?q=W+Hotel+Hong+Kong",
                 start_time_utc=now + timedelta(days=10, hours=20),
                 end_time_utc=now + timedelta(days=11, hours=2),
-                ticket_url="https://example.com/tickets/rooftop",
+                ticket_url="https://www.marriott.com/hotels/hotel-information/restaurant/hkgxw-hong-kong/",
                 discount_text="2-for-1 drinks before 10pm",
-                discount_url="https://example.com/discounts/rooftop",
+                discount_url="https://www.marriott.com/hotels/hotel-information/restaurant/hkgxw-hong-kong/",
             ),
             ScrapedEvent(
                 external_id="sample-henley-regatta",
