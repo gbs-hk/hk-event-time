@@ -30,6 +30,10 @@ def create_app() -> Flask:
     def index():
         return render_template("index.html")
 
+    @app.get("/health")
+    def health():
+        return jsonify({"status": "ok"})
+
     @app.get("/api/categories")
     def categories():
         return jsonify(list(categories_for_api()))

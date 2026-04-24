@@ -25,12 +25,19 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10"
+
+      - name: Vendor Python dependencies for App Service
+        run: |
+          python -m pip install --upgrade pip
+          rm -rf .python_packages
+          mkdir -p .python_packages/lib/site-packages
+          python -m pip install -r requirements.txt --target .python_packages/lib/site-packages
 
       - name: Assemble deploy artifact
         run: |
           rm -f deploy.zip
-          zip -qr deploy.zip app templates static run.py wsgi.py requirements.txt runtime.txt
+          zip -qr deploy.zip app templates static .python_packages run.py wsgi.py requirements.txt runtime.txt
 
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
@@ -44,7 +51,7 @@ jobs:
           az webapp config appsettings set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true DATABASE_URL=sqlite:////home/site/wwwroot/events.db FLASK_ENV=production USE_RELOADER=0
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false DATABASE_URL=sqlite:////home/site/wwwroot/events.db FLASK_ENV=production USE_RELOADER=0
           az webapp config set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
@@ -61,4 +68,4 @@ jobs:
           az webapp config set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --startup-file "gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app"
+            --startup-file "bash -c \"export PYTHONPATH=/home/site/wwwroot/.python_packages/lib/site-packages:\$PYTHONPATH && exec python -m gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
