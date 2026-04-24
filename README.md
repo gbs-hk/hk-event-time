@@ -1,147 +1,258 @@
-# Hong Kong Event Calendar
+# HK Event Discovery
 
-This project scrapes selected Hong Kong event sources, classifies events automatically, and shows them in a filterable calendar with direct links to maps, tickets, and offers.
+A web app that scrapes Hong Kong event websites, stores the events in a
+database, and displays them on a calendar in your browser.
 
-## Features
+## Architecture overview
 
-- Automated scraping pipeline with manual refresh and scheduled runs
-- Multi-strategy scraping support:
-  - JSON-LD event extraction
-  - Generic event-card extraction
-  - Event-link discovery and detail-page parsing
-- Automatic categorization for music, party, sports, food, culture, networking, and other
-- Color-coded calendar with month, week, and day views
-- Event detail modal with location, organizer, ticket, and discount links
-- Source debug endpoint for scrape diagnostics
+The project has three parts that talk to each other in a straight line:
 
-## Requirements
+```
+Event websites ──(scrape HTML)──> Backend API ──(save/read)──> Database
+                                       ^
+                                       |
+                                  (HTTP requests)
+                                       |
+                                   Frontend
+                                  (your browser)
+```
 
-- Python 3.10 or newer
-- `git`
-- PostgreSQL is optional for local development and recommended for Azure deployment
+```mermaid
+flowchart LR
+  subgraph scraping [1 - Scraping]
+    Sites["Event Websites<br/>(Klook, Time Out, ...)"]
+    Scraper["Scraper<br/>Python + BeautifulSoup"]
+  end
 
-## Clone and install
+  subgraph backend_group [2 - Backend]
+    API["FastAPI Server<br/>(REST API)"]
+    DB[("PostgreSQL<br/>Database")]
+  end
+
+  subgraph frontend_group [3 - Frontend]
+    Next["Next.js App<br/>(React)"]
+    Browser["Your Browser"]
+  end
+
+  Sites -->|"download HTML"| Scraper
+  Scraper -->|"write events"| DB
+  API -->|"read events"| DB
+  Next -->|"GET /api/events"| API
+  Browser -->|"renders page"| Next
+```
+
+**How data flows through the system:**
+
+1. The **scraper** visits event websites, reads their HTML, and pulls out event
+   details (title, date, location, link).
+2. Those events are **saved to PostgreSQL** so they survive restarts.
+3. The **FastAPI backend** exposes REST endpoints so the frontend can ask
+   "give me all events" or "give me only music events".
+4. The **Next.js frontend** calls those endpoints, gets JSON back, and renders
+   the events on a FullCalendar widget in your browser.
+
+## Concepts you will learn
+
+| Concept | Where in the code | What it means |
+|---|---|---|
+| REST API | `backend/app/api/events.py` | A standard way for programs to talk over HTTP (GET, POST, ...) |
+| ORM (Object-Relational Mapping) | `backend/app/models.py` | Python classes that map to database tables -- no raw SQL needed |
+| Web Scraping | `backend/app/sources/` | Downloading a web page and extracting structured data from its HTML |
+| React Components | `frontend/src/components/` | Reusable UI building blocks (Calendar, EventDrawer) |
+| React State (hooks) | `frontend/src/app/page.tsx` | `useState` and `useEffect` manage what the page shows and when it updates |
+| Client-Server Architecture | `frontend/src/lib/api.ts` | The browser (client) sends HTTP requests to the backend (server) |
+| SQL Database | `docker-compose.yml` | PostgreSQL stores rows of events, categories, and sources in tables |
+| Containers (Docker) | `docker-compose.yml` | Docker runs the database in an isolated box so you skip OS-specific setup |
+
+## Folder map
+
+```
+hk-event-time/
+├── backend/                          # Everything that runs on the server
+│   ├── app/
+│   │   ├── main.py                   # Entry point -- creates the FastAPI server
+│   │   ├── config.py                 # Reads settings from .env file
+│   │   ├── database.py               # Connects Python to PostgreSQL via SQLAlchemy
+│   │   ├── models.py                 # Defines database tables as Python classes
+│   │   ├── schemas.py                # Shapes of JSON the API returns (Pydantic)
+│   │   ├── categories.py             # List of event categories (music, sports, ...)
+│   │   ├── categorize.py             # Assigns a category to an event by keywords
+│   │   ├── scrape.py                 # Orchestrates all scrapers, saves results to DB
+│   │   ├── api/
+│   │   │   └── events.py             # HTTP endpoints the frontend calls
+│   │   └── sources/                  # One file per website we scrape
+│   │       ├── common.py             # Shared helpers (fetch HTML, parse dates)
+│   │       ├── types.py              # RawEvent dataclass
+│   │       ├── klook_hk.py           # Klook Hong Kong scraper
+│   │       ├── timeout_hk.py         # Time Out Hong Kong scraper
+│   │       ├── eventbrite_hk.py      # Eventbrite Hong Kong scraper
+│   │       ├── meetup_hk.py          # Meetup Hong Kong scraper
+│   │       ├── hktb.py               # HK Tourism Board scraper
+│   │       └── ticketflap.py         # Ticketflap scraper
+│   ├── scripts/
+│   │   ├── init_db.py                # Run once to create database tables
+│   │   └── run_scrape.py             # Run once or on a schedule to scrape events
+│   └── requirements.txt              # Python dependencies
+│
+├── frontend/                         # Everything that runs in the browser
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── layout.tsx            # Root HTML wrapper
+│   │   │   ├── page.tsx              # Main page -- state, filters, calendar
+│   │   │   └── globals.css           # Global styles
+│   │   ├── components/
+│   │   │   ├── Calendar.tsx          # FullCalendar wrapper (month/week/day views)
+│   │   │   └── EventDrawer.tsx       # Side panel showing event details
+│   │   ├── lib/
+│   │   │   ├── api.ts                # Functions that call the backend API
+│   │   │   └── categories.ts         # Helper to pick category colors
+│   │   └── types/
+│   │       └── event.ts              # TypeScript type definitions
+│   └── package.json                  # Node.js dependencies
+│
+├── docker-compose.yml                # Runs PostgreSQL in a Docker container
+├── .env.example                      # Template for environment variables
+└── .gitignore                        # Files git should ignore
+```
+
+## What you need installed
+
+| Tool | Why |
+|---|---|
+| Python 3.11+ | Runs the backend and scraper |
+| Node.js 20+ | Runs the frontend dev server |
+| Docker | Runs the PostgreSQL database |
+
+> **WSL users:** install Node via [nvm](https://github.com/nvm-sh/nvm) inside
+> Linux (`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash`,
+> then `nvm install --lts`).
+
+---
+
+## Quick start
+
+Run every command from the project root unless noted otherwise.
+
+### 1. Create `.env`
 
 ```bash
-git clone https://github.com/gbs-hk/hk-event-time.git
-cd hk-event-time
+cp .env.example .env          # Linux / macOS
+# or
+Copy-Item .env.example .env   # Windows PowerShell
+```
+
+You usually do not need to edit this file for local development.
+
+### 2. Start the database
+
+```bash
+docker compose up -d db
+```
+
+### 3. Set up the backend
+
+```bash
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r backend/requirements.txt
+cd backend
+python scripts/init_db.py      # creates tables in the database
 ```
 
-Windows activation:
+### 4. Run the backend API
+
+Stay in `backend/`:
 
 ```bash
-.venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000
 ```
 
-## Run the app
+Leave this terminal open. Visit http://localhost:8000/docs to see the auto-generated API documentation.
+
+### 5. Run the frontend
+
+Open a **new terminal**:
 
 ```bash
-python run.py
+cd frontend
+npm install
+npm run dev
 ```
 
-Open [http://127.0.0.1:5050](http://127.0.0.1:5050)
+Open http://localhost:3000 -- you should see the calendar.
 
-If port `5050` is already in use:
+### 6. Scrape events
+
+Open a **third terminal**, activate the venv, then from `backend/`:
 
 ```bash
-PORT=5051 python run.py
+python scripts/run_scrape.py
 ```
 
-## Common commands
+Refresh the browser -- events should appear on the calendar.
 
-Refresh dependencies:
+---
 
-```bash
-pip install -r requirements.txt
+## Daily workflow
+
+1. `docker compose up -d db`
+2. Activate your Python venv
+3. Terminal 1 (from `backend/`): `uvicorn app.main:app --reload --port 8000`
+4. Terminal 2 (from `frontend/`): `npm run dev`
+5. Terminal 3 (from `backend/`): `python scripts/run_scrape.py` whenever you want fresh events
+
+---
+
+## Auto deploy to Azure (simple view)
+
+When you push code to `main`, GitHub Actions deploys your app to Azure automatically.
+
+```mermaid
+flowchart LR
+  localCode[Your code on laptop] -->|git push main| githubRepo[GitHub repository]
+  githubRepo --> deployWorkflow[Deploy workflow]
+  deployWorkflow --> azureWebApp[Azure Web App hk-event-time]
+  azureWebApp --> healthWorkflow[Post-deploy health check workflow]
+  healthWorkflow --> result{Health check pass?}
+  result -->|Yes| green[Deployment is healthy]
+  result -->|No| red[Workflow fails so you catch issues fast]
 ```
 
-Run tests:
+### What runs on each push
 
-```bash
-python -m unittest discover -s tests -v
-```
+1. `.github/workflows/azure-deploy.yml` runs on every push to `main`.
+2. It deploys the latest commit to Azure Web App `hk-event-time`.
+3. `.github/workflows/post-deploy-healthcheck.yml` runs after deploy and probes:
+   - `/`
+   - `/api/events?start=...&end=...`
+4. If either probe fails, the health-check workflow fails.
 
-## Configuration
+### Required GitHub secrets (one-time setup)
 
-The app can be configured with environment variables:
+In your GitHub repo settings, add:
 
-- `PORT`: web server port, default `5050`
-- `SCHEDULE_HOUR_UTC`: daily scheduled scrape hour in UTC
-- `SCRAPE_TIMEOUT_SECONDS`: per-request scrape timeout
-- `SCRAPE_MAX_DETAIL_PAGES_PER_SOURCE`: detail pages followed per source, default `12`
-- `SCRAPE_INCLUDE_SAMPLE`: set to `1` to include sample demo events
-- `SCRAPE_SOURCE_MODE`: `lkf_nightlife` or `all`
-- `SCRAPE_FOCUS_CATEGORIES`: comma-separated categories, default `party,music`
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
 
-Example:
+These are used by OIDC login in the deploy workflow.
 
-```bash
-SCRAPE_SOURCE_MODE=all SCRAPE_FOCUS_CATEGORIES=party,music,food python run.py
-```
+---
 
-Database examples:
+## Troubleshooting
 
-Local SQLite:
+| Problem | Fix |
+|---|---|
+| `ModuleNotFoundError: No module named 'app'` | Make sure you run backend commands from inside `backend/` |
+| Frontend shows no events | Run the scraper at least once, and check both servers are running |
+| Database connection error | Check Docker is running: `docker ps`. Check `.env` exists |
 
-```bash
-DATABASE_URL=sqlite:///events.db
-```
+---
 
-PostgreSQL:
+## Environment variables
 
-```bash
-DATABASE_URL=postgresql+psycopg://user:password@host:5432/dbname
-```
-
-Azure Database for PostgreSQL:
-
-```bash
-DATABASE_URL=postgresql+psycopg://username:password@your-server.postgres.database.azure.com:5432/dbname?sslmode=require
-```
-
-The app also accepts older `postgres://...` style URLs and normalizes them automatically.
-
-## Azure deployment notes
-
-For Azure, PostgreSQL is the better choice than SQLite because it supports multi-user access, persistent hosted storage, and production deployment more reliably.
-
-Typical Azure flow:
-
-```bash
-export DATABASE_URL="postgresql+psycopg://username:password@your-server.postgres.database.azure.com:5432/dbname?sslmode=require"
-python run.py
-```
-
-When deploying to Azure App Service or another hosted environment, set `DATABASE_URL` as an application setting instead of hardcoding it in the codebase.
-
-**App Service startup command** (Configuration → General settings): use Gunicorn so the app listens on the port Azure provides:
-
-```bash
-gunicorn --bind=0.0.0.0:${PORT:-8000} --workers=2 --threads=4 run:app
-```
-
-Set `FLASK_ENV=production` and `SECRET_KEY` in Application settings so debug mode is off and sessions are secure.
-
-## API endpoints
-
-- `GET /api/categories`
-- `GET /api/events?start=<ISO>&end=<ISO>&category=music&category=party`
-- `POST /api/scrape-now`
-- `GET /api/debug/sources`
-- `GET /api/debug/sources?run=1`
-
-## Project structure
-
-- `app/`: Flask app, models, services, scheduler, and scrapers
-- `static/`: frontend JavaScript and CSS
-- `templates/`: HTML templates
-- `tests/`: test suite
-
-## Current scraping notes
-
-Configured sources include general Hong Kong event sites plus Lan Kwai Fong and nightlife-related sources. Some sites are JavaScript-rendered, login-gated, or bot-protected, so plain HTTP scraping may return partial or zero results. For those sources, the next step is a source-specific scraper or browser-based automation.
-
-Always make sure your use of scraped websites follows their terms and robots policies.
+| Variable | Purpose | Default |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg2://postgres:postgres@localhost:5432/hk_events` |
+| `BACKEND_CORS_ORIGINS` | Which URLs can call the API | `http://localhost:3000` |
+| `NEXT_PUBLIC_API_BASE_URL` | Where the frontend finds the API | `http://localhost:8000/api` |

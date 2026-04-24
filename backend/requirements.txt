@@ -1,0 +1,23 @@
+# Web framework and server
+fastapi>=0.115.7
+gunicorn>=25.3.0
+uvicorn[standard]>=0.34.0
+
+# Database (ORM + PostgreSQL driver)
+sqlalchemy>=2.0.37
+psycopg2-binary>=2.9.10
+
+# Configuration from .env files
+pydantic-settings>=2.7.1
+
+# Web scraping
+beautifulsoup4>=4.12.3
+requests>=2.32.3
+cloudscraper>=1.2.71
+curl_cffi>=0.7.0
+
+# Date parsing
+python-dateutil>=2.9.0.post0
+
+# Scheduled scraping (run_scrape.py --mode scheduler)
+apscheduler>=3.10.4
