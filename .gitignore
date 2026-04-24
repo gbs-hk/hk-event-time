@@ -1,4 +1,3 @@
-# Python
 .venv/
 venv/
 env/
@@ -13,19 +12,16 @@ dist/
 build/
 *.egg
 
-# Environment and secrets
 .env
 .env.local
 .env.*.local
 
-# Testing / coverage
 .pytest_cache/
 .coverage
 htmlcov/
 .mypy_cache/
 .tox/
 
-# Node / Next.js
 node_modules/
 .next/
 out/
@@ -37,19 +33,17 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# OS
 .DS_Store
 Thumbs.db
 
-# Logs and local data
 *.log
 logs/
 *.sqlite
 *.db
+events.db
