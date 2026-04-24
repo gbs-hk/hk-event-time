@@ -51,3 +51,21 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Configure Azure app settings after deploy
+        run: |
+          az webapp config appsettings set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings DATABASE_URL=sqlite:////home/site/wwwroot/events.db FLASK_ENV=production USE_RELOADER=0
+
+      - name: Configure startup command after deploy
+        run: |
+          az webapp config set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --linux-fx-version "PYTHON|3.10" \
+            --startup-file "bash -c \"export PYTHONPATH=/home/site/wwwroot/.python_packages/lib/site-packages:\$PYTHONPATH && exec python -m gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
+
+      - name: Wait for app restart to settle
+        run: sleep 45
