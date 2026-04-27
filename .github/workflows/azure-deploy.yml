@@ -91,6 +91,14 @@ jobs:
           curl --fail --show-error --silent --retry 18 --retry-delay 10 --retry-connrefused --max-time 30 \
             "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health"
 
+      - name: Log in to Azure for diagnostics
+        if: failure()
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BFC869CB135A43B792809933289B5DB6 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
+
       - name: Show Azure logs on failure
         if: failure()
         run: |
