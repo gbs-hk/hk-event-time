@@ -50,7 +50,7 @@ jobs:
           az webapp config appsettings set \
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true DATABASE_URL=sqlite:////home/site/wwwroot/events.db FLASK_ENV=production USE_RELOADER=0
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true DATABASE_URL=sqlite:////home/data/events.db FLASK_ENV=production USE_RELOADER=0
 
       - name: Configure startup command after deploy
         run: |
@@ -58,7 +58,7 @@ jobs:
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --linux-fx-version "PYTHON|3.10" \
-            --startup-file "gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app"
+            --startup-file "bash -c \"mkdir -p /home/data && exec gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
 
       - name: Wait for app restart to settle
         run: sleep 45
