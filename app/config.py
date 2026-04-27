@@ -17,13 +17,14 @@ class Config:
     SCRAPE_MAX_MONTH_PAGES_PER_SOURCE = int(
         os.getenv("SCRAPE_MAX_MONTH_PAGES_PER_SOURCE", "6")
     )
+    EVENTBRITE_API_TOKEN = os.getenv("EVENTBRITE_API_TOKEN", "")
     # Enable sample data by default so app works out of the box
     SCRAPE_INCLUDE_SAMPLE = os.getenv("SCRAPE_INCLUDE_SAMPLE", "1") == "1"
     SCRAPE_SOURCE_MODE = os.getenv("SCRAPE_SOURCE_MODE", "lkf_nightlife")
-    # Default to empty (all categories) for more events
+    # Keep the production feed focused on nightlife unless explicitly widened.
     SCRAPE_FOCUS_CATEGORIES = tuple(
         value.strip().lower()
-        for value in os.getenv("SCRAPE_FOCUS_CATEGORIES", "").split(",")
+        for value in os.getenv("SCRAPE_FOCUS_CATEGORIES", "party,music").split(",")
         if value.strip()
     )
 

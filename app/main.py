@@ -100,10 +100,6 @@ def create_app() -> Flask:
 
     return app
 
-
-app = create_app()
-
-
 def parse_request_datetime_to_utc(value: str) -> datetime:
     parsed = dt_parser.parse(value)
     if parsed.tzinfo is None:

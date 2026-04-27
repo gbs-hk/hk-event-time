@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from xml.etree import ElementTree as ET
 from zoneinfo import ZoneInfo
 
@@ -28,7 +28,7 @@ class UrbtixOpenDataScraper(BaseScraper):
         return []
 
     def _candidate_publish_dates(self) -> list[str]:
-        today = datetime.now(UTC)
+        today = datetime.now(timezone.utc)
         return [(today - timedelta(days=offset)).strftime("%Y%m%d") for offset in range(3)]
 
     def _fetch_batch_xml(self, publish_date: str) -> str:
@@ -116,4 +116,4 @@ class UrbtixOpenDataScraper(BaseScraper):
             local_dt = datetime.strptime(raw_value, "%Y-%m-%d %H:%M").replace(tzinfo=HK_TZ)
         except ValueError:
             return None
-        return local_dt.astimezone(UTC).replace(tzinfo=None)
+        return local_dt.astimezone(timezone.utc).replace(tzinfo=None)

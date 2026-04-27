@@ -16,8 +16,8 @@ def start_scheduler() -> None:
     if scheduler.running:
         return
 
-    # Only start scheduler in the main process, not Flask's debug reloader child
-    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+    # In local debug mode, only the reloader child should schedule jobs.
+    if os.environ.get("FLASK_ENV") != "production" and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         return
 
     scheduler.add_job(

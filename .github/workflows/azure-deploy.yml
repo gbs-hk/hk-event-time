@@ -30,7 +30,7 @@ jobs:
       - name: Assemble deploy artifact
         run: |
           rm -f deploy.zip
-          zip -qr deploy.zip app templates static run.py wsgi.py requirements.txt runtime.txt
+          zip -qr deploy.zip app templates static run.py wsgi.py requirements.txt runtime.txt -x "*/__pycache__/*" "*.pyc"
 
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
@@ -39,26 +39,41 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
 
+      - name: Configure Azure app settings before deploy
+        run: |
+          az webapp config appsettings set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=true \
+              ENABLE_ORYX_BUILD=true \
+              DATABASE_URL=sqlite:////home/data/events.db \
+              FLASK_ENV=production \
+              USE_RELOADER=0 \
+              SCRAPE_SOURCE_MODE=lkf_nightlife \
+              SCRAPE_FOCUS_CATEGORIES=party,music
+
+      - name: Configure startup command before deploy
+        run: |
+          az webapp config set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --linux-fx-version "PYTHON|3.10" \
+            --startup-file "bash -c \"mkdir -p /home/data && exec python -m gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
+
       - name: Deploy prepared artifact to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      - name: Configure Azure app settings after deploy
+      - name: Restart Azure Web App
         run: |
-          az webapp config appsettings set \
+          az webapp restart \
             --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true DATABASE_URL=sqlite:////home/data/events.db FLASK_ENV=production USE_RELOADER=0
+            --resource-group "${AZURE_RESOURCE_GROUP}"
 
-      - name: Configure startup command after deploy
+      - name: Wait for app health
         run: |
-          az webapp config set \
-            --name "${AZURE_WEBAPP_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --linux-fx-version "PYTHON|3.10" \
-            --startup-file "bash -c \"mkdir -p /home/data && exec gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
-
-      - name: Wait for app restart to settle
-        run: sleep 45
+          curl --fail --show-error --silent --retry 18 --retry-delay 10 --retry-connrefused --max-time 30 \
+            "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health"

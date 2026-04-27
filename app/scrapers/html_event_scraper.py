@@ -40,6 +40,7 @@ LOW_QUALITY_TITLES = {
 }
 LOW_QUALITY_TITLE_PATTERNS = (
     r"^best\s+",
+    r"^events?\s+in\s+",
     r"\bwhere to go\b",
     r"\bguide\b",
     r"\bthings to do\b",

@@ -15,15 +15,15 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Probe web root renders frontend app
+      - name: Probe web root renders Flask app
         run: |
-          curl --fail --show-error --silent --retry 5 --retry-delay 5 --retry-connrefused \
+          curl --fail --show-error --silent --retry 12 --retry-delay 10 --retry-connrefused --max-time 30 \
             "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/" \
-            | grep -q "Hong Kong Event Discovery"
+            | grep -q "Hong Kong Nightlife Radar"
 
       - name: Probe API health endpoint
         run: |
-          curl --fail --show-error --silent --retry 5 --retry-delay 5 --retry-connrefused \
+          curl --fail --show-error --silent --retry 12 --retry-delay 10 --retry-connrefused --max-time 30 \
             "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health" \
             | grep -q '"status":"ok"'
 
@@ -31,5 +31,5 @@ jobs:
         run: |
           START="$(date -u +%Y-%m-01T00:00:00Z)"
           END="$(date -u -d '+32 days' +%Y-%m-01T00:00:00Z)"
-          curl --fail --show-error --silent --retry 5 --retry-delay 5 --retry-connrefused \
+          curl --fail --show-error --silent --retry 12 --retry-delay 10 --retry-connrefused --max-time 30 \
             "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/api/events?start=${START}&end=${END}"

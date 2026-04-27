@@ -1,11 +1,8 @@
 # Hong Kong Event Time
 
-This repository now contains two local code paths that have been merged together:
+This repository contains the Flask calendar app that is deployed to Azure from `main`.
 
-- the original Flask calendar app in the repo root (`app/`, `static/`, `templates/`, `run.py`)
-- the newer GitHub-published split stack under `backend/` and `frontend/`
-
-Your current local preview work is still based on the root-level Flask app and runs at [http://127.0.0.1:5050](http://127.0.0.1:5050).
+The previous FastAPI/Next.js duplicate stack has been removed so local work, GitHub Actions, and Azure all point at the same app code.
 
 ## Local Flask app
 
@@ -29,32 +26,24 @@ Open [http://127.0.0.1:5050](http://127.0.0.1:5050)
 - `GET /api/categories`
 - `GET /api/events?start=<ISO>&end=<ISO>`
 - `POST /api/scrape-now`
-- `GET /api/scrape-status`
 - `GET /api/debug/sources`
 
-## New GitHub backend/frontend stack
+## Deployment
 
-The fetched GitHub version also adds:
+Pushes to `main` run `.github/workflows/azure-deploy.yml`, which packages the Flask app and deploys it to Azure App Service `hk-event-time`.
 
-- `backend/` with a newer API/scraper structure
-- `frontend/` with a Next.js UI
-- `.github/workflows/` deployment workflows
-- `docker-compose.yml` and Postgres-oriented local setup
+The workflow sets the Azure app to use the writable SQLite path at `/home/data/events.db`, starts `wsgi:app` with Gunicorn, and waits for `/health` before the deployment is considered successful.
 
-That stack has not replaced your root Flask app locally; it has been merged alongside it so you can compare, reuse, or gradually port pieces across.
-
-### High-level flow of the newer stack
+### High-level flow
 
 ```mermaid
 flowchart LR
   Sites["Event websites"] --> Scraper["Backend scrapers"]
   Scraper --> DB[("Database")]
-  Frontend["Next.js frontend"] --> API["Backend API"]
-  API --> DB
+  Flask["Flask calendar app"] --> DB
 ```
 
 ## Notes
 
-- SQLite remains the active local DB for the root Flask app unless you switch `.env`.
-- The merged repo currently includes build artifacts and cached Python files from GitHub history under `backend/app/frontend_out/` and some `__pycache__` directories.
-- If you want, the next step can be a cleanup pass where we decide which stack should become the single main app and remove the rest.
+- SQLite remains the active local DB unless you switch `DATABASE_URL`.
+- On Azure, app settings should keep `SCM_DO_BUILD_DURING_DEPLOYMENT=true`, `ENABLE_ORYX_BUILD=true`, `FLASK_ENV=production`, and `DATABASE_URL=sqlite:////home/data/events.db`.

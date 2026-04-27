@@ -19,6 +19,8 @@ class ScrapedEvent:
     ticket_url: str
     discount_text: str
     discount_url: str
+    source_url: str = ""
+    price_text: str = ""
 
 
 class BaseScraper:

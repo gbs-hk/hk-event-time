@@ -10,7 +10,7 @@ from .config import Config
 from .database import SessionLocal
 from .models import Event
 from .scrapers.base import ScrapedEvent
-from .scrapers.html_event_scraper import make_semantic_key
+from .scrapers.html_event_scraper import is_low_quality_title, make_semantic_key
 from .scrapers.sources import build_scrapers
 
 
@@ -72,6 +72,7 @@ def run_scrape_detailed() -> dict[str, Any]:
             "skipped_past": 0,
             "skipped_duplicate": 0,
             "skipped_category": 0,
+            "skipped_quality": 0,
             "status": "ok",
         }
 
@@ -104,6 +105,10 @@ def run_scrape_detailed() -> dict[str, Any]:
             category = infer_category(scraped.name, scraped.description, scraped.source_name)
             if not should_keep_category(category):
                 source_info["skipped_category"] += 1
+                continue
+            quality = evaluate_event(scraped)
+            if quality["rejected"]:
+                source_info["skipped_quality"] += 1
                 continue
 
             upsert_event(scraped, category=category)
@@ -147,6 +152,50 @@ def should_keep_category(category: str) -> bool:
     if not focused:
         return True
     return category in focused
+
+
+def evaluate_event(event: ScrapedEvent) -> dict[str, Any]:
+    reasons: list[str] = []
+    score = 0
+
+    if is_low_quality_title(event.name):
+        reasons.append("generic_title")
+    else:
+        score += 25
+
+    if event.description and len(event.description.strip()) >= 40:
+        score += 15
+    if event.location_name:
+        score += 10
+    if event.ticket_url:
+        score += 10
+    if event.map_url:
+        score += 5
+    if event.organizer:
+        score += 5
+    if event.discount_text or event.discount_url:
+        score += 5
+
+    trusted_markers = (
+        "discover hong kong",
+        "timeout",
+        "time out",
+        "urbtix",
+        "eventbrite",
+        "lan-kwai-fong",
+        "luma",
+    )
+    if any(marker in event.source_name.lower() for marker in trusted_markers):
+        score += 10
+
+    if score < 35:
+        reasons.append("low_information")
+
+    return {
+        "score": score,
+        "rejected": bool(reasons),
+        "reasons": reasons,
+    }
 
 
 def source_event_counts_upcoming() -> list[dict[str, Any]]:

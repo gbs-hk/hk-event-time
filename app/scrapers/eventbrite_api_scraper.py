@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -17,7 +17,7 @@ class EventbriteApiScraper(BaseScraper):
         if not Config.EVENTBRITE_API_TOKEN:
             return []
 
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         params = {
             "q": "Hong Kong",
             "location.address": "Hong Kong",
@@ -54,7 +54,7 @@ class EventbriteApiScraper(BaseScraper):
             return None
 
         try:
-            start_dt = datetime.fromisoformat(start_local.replace("Z", "+00:00")).astimezone(UTC).replace(tzinfo=None)
+            start_dt = datetime.fromisoformat(start_local.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
         except ValueError:
             return None
 
@@ -62,7 +62,7 @@ class EventbriteApiScraper(BaseScraper):
         end_local = ((item.get("end") or {}).get("utc")) or ""
         if end_local:
             try:
-                end_dt = datetime.fromisoformat(end_local.replace("Z", "+00:00")).astimezone(UTC).replace(tzinfo=None)
+                end_dt = datetime.fromisoformat(end_local.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
             except ValueError:
                 end_dt = None
 
