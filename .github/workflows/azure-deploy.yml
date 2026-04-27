@@ -30,7 +30,7 @@ jobs:
       - name: Assemble deploy artifact
         run: |
           rm -f deploy.zip
-          zip -qr deploy.zip app templates static run.py wsgi.py requirements.txt runtime.txt -x "*/__pycache__/*" "*.pyc"
+          zip -qr deploy.zip app templates static run.py wsgi.py startup.sh requirements.txt runtime.txt -x "*/__pycache__/*" "*.pyc"
 
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
@@ -50,8 +50,21 @@ jobs:
               DATABASE_URL=sqlite:////home/data/events.db \
               FLASK_ENV=production \
               USE_RELOADER=0 \
+              PORT=8000 \
+              WEBSITES_PORT=8000 \
+              WEBSITE_WARMUP_PATH=/health \
+              WEBSITE_WARMUP_STATUSES=200 \
               SCRAPE_SOURCE_MODE=lkf_nightlife \
               SCRAPE_FOCUS_CATEGORIES=party,music
+
+      - name: Enable Azure filesystem logging
+        run: |
+          az webapp log config \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --application-logging filesystem \
+            --web-server-logging filesystem \
+            --level information
 
       - name: Configure startup command before deploy
         run: |
@@ -59,7 +72,7 @@ jobs:
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --linux-fx-version "PYTHON|3.10" \
-            --startup-file "bash -c \"mkdir -p /home/data && exec python -m gunicorn --chdir /home/site/wwwroot --bind=0.0.0.0 --workers 1 --threads 4 --timeout 600 wsgi:app\""
+            --startup-file "bash /home/site/wwwroot/startup.sh"
 
       - name: Deploy prepared artifact to Azure Web App
         uses: azure/webapps-deploy@v3
@@ -77,3 +90,10 @@ jobs:
         run: |
           curl --fail --show-error --silent --retry 18 --retry-delay 10 --retry-connrefused --max-time 30 \
             "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health"
+
+      - name: Show Azure logs on failure
+        if: failure()
+        run: |
+          timeout 90 az webapp log tail \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" || true
