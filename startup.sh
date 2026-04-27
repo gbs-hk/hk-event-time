@@ -3,8 +3,7 @@ set -euo pipefail
 
 mkdir -p /home/data
 
-echo "Installing Python dependencies..."
-python -m pip install --no-cache-dir --user -r /home/site/wwwroot/requirements.txt
+export PYTHONPATH="/home/site/wwwroot/.python_packages/lib/site-packages:${PYTHONPATH:-}"
 
 echo "Starting Gunicorn on port ${PORT:-8000}..."
 exec python -m gunicorn \

@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: azure-deploy-main
+  cancel-in-progress: true
+
 permissions:
   id-token: write
   contents: read
@@ -30,7 +34,10 @@ jobs:
       - name: Assemble deploy artifact
         run: |
           rm -f deploy.zip
-          zip -qr deploy.zip app templates static run.py wsgi.py startup.sh requirements.txt runtime.txt -x "*/__pycache__/*" "*.pyc"
+          rm -rf .python_packages
+          python -m pip install --upgrade pip
+          python -m pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+          zip -qr deploy.zip app templates static run.py wsgi.py startup.sh requirements.txt runtime.txt .python_packages -x "*/__pycache__/*" "*.pyc"
 
       - name: Log in to Azure (OIDC)
         uses: azure/login@v2
@@ -45,8 +52,8 @@ jobs:
             --name "${AZURE_WEBAPP_NAME}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --settings \
-              SCM_DO_BUILD_DURING_DEPLOYMENT=true \
-              ENABLE_ORYX_BUILD=true \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+              ENABLE_ORYX_BUILD=false \
               DATABASE_URL=sqlite:////home/data/events.db \
               FLASK_ENV=production \
               USE_RELOADER=0 \
