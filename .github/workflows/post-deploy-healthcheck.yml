@@ -19,7 +19,7 @@ jobs:
         run: |
           curl --fail --show-error --silent --retry 12 --retry-delay 10 --retry-connrefused --max-time 30 \
             "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/" \
-            | grep -q "Hong Kong Nightlife Radar"
+            | grep -q 'id="calendar"'
 
       - name: Probe API health endpoint
         run: |
