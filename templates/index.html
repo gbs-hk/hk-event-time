@@ -8,39 +8,41 @@
       href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260504-fullscreen-calendar-5" />
   </head>
   <body>
     <div class="page-shell">
-      <aside class="sidebar">
-        <div class="brand-block">
-          <p class="eyebrow">Hong Kong Events</p>
-          <h1>Event Time</h1>
-          <p class="sidebar-note">A shared calendar for nightlife, culture, food, sport, and business events.</p>
-        </div>
-
-        <div class="photo-stack" aria-hidden="true">
-          <div class="photo-card photo-card-skyline"></div>
-          <div class="photo-card photo-card-street"></div>
-        </div>
-
-        <div class="status-block">
-          <span class="status-label">Current View</span>
-          <strong id="viewRangeLabel">Loading...</strong>
-          <span id="calendarStatus">Fetching events...</span>
-        </div>
-
-        <section class="filter-bar" aria-label="Event category filters">
-          <span class="section-label">Event Types</span>
-          <div id="categoryFilters" class="filters"></div>
-        </section>
-
-        <div class="sidebar-actions">
-          <button id="scrapeButton" class="primary">Refresh Events</button>
-        </div>
-      </aside>
-
       <main class="calendar-panel">
+        <div class="calendar-meta">
+          <div>
+            <p class="eyebrow">Hong Kong Events</p>
+            <strong id="viewRangeLabel">Loading...</strong>
+            <span id="calendarStatus">Fetching events...</span>
+          </div>
+          <div class="controls-popover">
+            <button
+              id="controlsToggle"
+              class="primary controls-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="controlsMenu"
+            >
+              Event Menu
+            </button>
+            <div id="controlsMenu" class="controls-menu" hidden>
+              <div class="menu-heading">
+                <span class="eyebrow">Controls</span>
+                <strong>Filter the calendar</strong>
+              </div>
+              <button id="scrapeButton" class="menu-refresh" type="button">Refresh Events</button>
+              <section class="filter-bar" aria-label="Event category filters">
+                <span class="menu-label">Event Categories</span>
+                <div id="categoryFilters" class="filters"></div>
+              </section>
+            </div>
+          </div>
+        </div>
+
         <div id="calendar"></div>
       </main>
     </div>
@@ -59,7 +61,21 @@
       </article>
     </dialog>
 
+    <dialog id="dayDialog" class="day-dialog">
+      <article class="day-sheet">
+        <header class="day-sheet-header">
+          <div>
+            <p class="eyebrow">Selected Day</p>
+            <h2 id="dayTitle"></h2>
+            <p id="daySubtitle"></p>
+          </div>
+          <button id="closeDayDialog" class="ghost">Close</button>
+        </header>
+        <div id="dayEventGroups" class="day-event-groups"></div>
+      </article>
+    </dialog>
+
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20260504-fullscreen-calendar-5"></script>
   </body>
 </html>
