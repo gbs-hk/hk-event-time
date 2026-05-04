@@ -51,6 +51,7 @@ function renderCategoryFilters() {
   categories.forEach((category) => {
     const label = document.createElement("label");
     label.className = "filter-chip";
+    label.style.setProperty("--category-color", category.color);
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";

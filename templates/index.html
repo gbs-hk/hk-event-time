@@ -12,27 +12,33 @@
   </head>
   <body>
     <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Hong Kong Nightlife Radar</p>
-          <h1>Find the next good night out without digging through ten sites.</h1>
-          <p class="hero-text">
-            A cleaner view of upcoming club nights, parties, and music events with fast filters and direct links.
-          </p>
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="eyebrow">Hong Kong Events</p>
+          <h1>Event Time</h1>
+          <p class="sidebar-note">A shared calendar for nightlife, culture, food, sport, and business events.</p>
         </div>
-        <div class="hero-actions">
-          <button id="scrapeButton" class="primary">Refresh Events</button>
-          <div class="status-card">
-            <span class="status-label">Current View</span>
-            <strong id="viewRangeLabel">Loading...</strong>
-            <span id="calendarStatus">Fetching events...</span>
-          </div>
-        </div>
-      </header>
 
-      <section class="controls">
-        <div id="categoryFilters" class="filters"></div>
-      </section>
+        <div class="photo-stack" aria-hidden="true">
+          <div class="photo-card photo-card-skyline"></div>
+          <div class="photo-card photo-card-street"></div>
+        </div>
+
+        <div class="status-block">
+          <span class="status-label">Current View</span>
+          <strong id="viewRangeLabel">Loading...</strong>
+          <span id="calendarStatus">Fetching events...</span>
+        </div>
+
+        <section class="filter-bar" aria-label="Event category filters">
+          <span class="section-label">Event Types</span>
+          <div id="categoryFilters" class="filters"></div>
+        </section>
+
+        <div class="sidebar-actions">
+          <button id="scrapeButton" class="primary">Refresh Events</button>
+        </div>
+      </aside>
 
       <main class="calendar-panel">
         <div id="calendar"></div>
