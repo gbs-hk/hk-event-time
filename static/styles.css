@@ -363,6 +363,23 @@ h1 {
   display: none;
 }
 
+.fc .fc-popover {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface-solid);
+  box-shadow: 0 18px 48px rgba(32, 32, 31, 0.18);
+}
+
+.fc .fc-popover-header {
+  background: #f7f6f3;
+  border-bottom: 1px solid var(--line);
+}
+
+.fc .fc-popover-body {
+  background: var(--surface-solid);
+}
+
 dialog {
   width: min(580px, calc(100vw - 24px));
   padding: 0;
