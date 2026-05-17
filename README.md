@@ -188,8 +188,8 @@ The workflow packages and deploys the Flask app to Azure App Service:
 Important Azure settings:
 
 ```text
-SCM_DO_BUILD_DURING_DEPLOYMENT=true
-ENABLE_ORYX_BUILD=true
+SCM_DO_BUILD_DURING_DEPLOYMENT=false
+ENABLE_ORYX_BUILD=false
 FLASK_ENV=production
 DATABASE_URL=sqlite:////home/data/events.db
 ```
