@@ -445,9 +445,11 @@ function isPlaceholderOrInvalidUrl(url) {
 function setLink(linkEl, href, fallbackText) {
   if (href && !isPlaceholderOrInvalidUrl(href)) {
     linkEl.href = href;
+    linkEl.target = "_self";
     linkEl.style.display = "inline-flex";
   } else {
     linkEl.removeAttribute("href");
+    linkEl.removeAttribute("target");
     linkEl.style.display = "none";
   }
   linkEl.textContent = fallbackText;

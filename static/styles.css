@@ -1218,3 +1218,94 @@ dialog::backdrop {
     flex-direction: column;
   }
 }
+
+@media (max-height: 900px) {
+  .calendar-meta {
+    padding-top: 8px;
+  }
+
+  .eyebrow {
+    margin-bottom: 2px;
+    font-size: 0.62rem;
+  }
+
+  #calendarStatus {
+    font-size: 0.78rem;
+  }
+
+  .primary,
+  .ghost {
+    min-height: 34px;
+    padding-block: 0.42rem;
+    font-size: 0.82rem;
+  }
+
+  .fc .fc-toolbar.fc-header-toolbar {
+    padding-top: 7px;
+    padding-bottom: 9px;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 1.85rem;
+  }
+
+  .fc .fc-button {
+    min-width: 38px;
+    min-height: 38px;
+    font-size: 0.85rem;
+  }
+
+  .fc .fc-today-button {
+    min-width: 82px;
+    padding-inline: 14px;
+    font-size: 0.9rem;
+  }
+
+  .fc .fc-col-header-cell-cushion {
+    padding: 7px 4px;
+    font-size: 0.82rem;
+  }
+
+  .fc .fc-daygrid-day-frame {
+    padding: 10px 6px 3px;
+  }
+
+  .fc .fc-daygrid-day-number {
+    width: 36px;
+    height: 36px;
+    font-size: 1.12rem;
+  }
+
+  .fc .fc-day-today .fc-daygrid-day-frame::before {
+    inset: 4px 5px;
+    border-radius: 20px 15px 22px 14px;
+  }
+
+  .fc .fc-day-today .fc-daygrid-day-frame::after {
+    top: 4px;
+    padding: 2px 7px;
+    font-size: 0.43rem;
+  }
+
+  .month-category-stack {
+    width: min(106px, 100%);
+    gap: 2px;
+    margin-top: -2px;
+  }
+
+  .month-category-pill {
+    min-height: 14px;
+    padding: 1px 4px 1px 7px;
+    font-size: 0.47rem;
+  }
+
+  .month-category-pill strong {
+    min-width: 13px;
+    height: 13px;
+    font-size: 0.46rem;
+  }
+
+  .category-overflow {
+    display: none;
+  }
+}
