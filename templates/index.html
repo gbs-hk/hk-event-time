@@ -8,7 +8,7 @@
       href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260508-detail-menu-polish" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260521-user-features" />
   </head>
   <body>
     <div class="page-shell">
@@ -34,9 +34,20 @@
                 <span class="eyebrow">Controls</span>
                 <strong>Filter the calendar</strong>
               </div>
+              <section class="menu-search" aria-label="Search events">
+                <label class="menu-label" for="eventSearch">Find Events</label>
+                <div class="menu-search-row">
+                  <input id="eventSearch" type="search" placeholder="Search name, venue, source..." autocomplete="off" />
+                  <button id="clearSearchButton" class="menu-small-button" type="button">Clear</button>
+                </div>
+              </section>
               <button id="scrapeButton" class="menu-refresh" type="button">Refresh Events</button>
               <section class="filter-bar" aria-label="Event category filters">
                 <span class="menu-label">Event Categories</span>
+                <div class="filter-actions">
+                  <button id="selectAllCategories" class="menu-small-button" type="button">All</button>
+                  <button id="clearCategories" class="menu-small-button" type="button">None</button>
+                </div>
                 <div id="categoryFilters" class="filters"></div>
               </section>
             </div>
@@ -56,6 +67,7 @@
           <a id="mapLink" target="_blank" rel="noopener">Open Map</a>
           <a id="ticketLink" target="_blank" rel="noopener">Tickets / Registration</a>
           <a id="discountLink" target="_blank" rel="noopener">Discount Offer</a>
+          <a id="calendarLink" download="event.ics">Add to Calendar</a>
         </div>
         <button id="closeDialog" class="ghost">Close</button>
       </article>
@@ -76,6 +88,6 @@
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-    <script src="/static/app.js?v=20260508-detail-menu-polish"></script>
+    <script src="/static/app.js?v=20260521-user-features"></script>
   </body>
 </html>

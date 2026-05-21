@@ -2,6 +2,10 @@ const categoryFiltersEl = document.getElementById("categoryFilters");
 const scrapeButton = document.getElementById("scrapeButton");
 const controlsToggle = document.getElementById("controlsToggle");
 const controlsMenu = document.getElementById("controlsMenu");
+const eventSearchInput = document.getElementById("eventSearch");
+const clearSearchButton = document.getElementById("clearSearchButton");
+const selectAllCategoriesButton = document.getElementById("selectAllCategories");
+const clearCategoriesButton = document.getElementById("clearCategories");
 const dialog = document.getElementById("eventDialog");
 const closeDialogButton = document.getElementById("closeDialog");
 const dayDialog = document.getElementById("dayDialog");
@@ -15,6 +19,7 @@ const eventDescription = document.getElementById("eventDescription");
 const mapLink = document.getElementById("mapLink");
 const ticketLink = document.getElementById("ticketLink");
 const discountLink = document.getElementById("discountLink");
+const calendarLink = document.getElementById("calendarLink");
 const dayTitle = document.getElementById("dayTitle");
 const daySubtitle = document.getElementById("daySubtitle");
 const dayEventGroups = document.getElementById("dayEventGroups");
@@ -61,6 +66,7 @@ let categories = [];
 let calendar;
 let monthPaintToken = 0;
 let latestEventsByDate = new Map();
+let activeSearchTerm = "";
 
 async function loadCategories() {
   const response = await fetch("/api/categories");
@@ -120,6 +126,42 @@ function buildEventsUrl(fetchInfo) {
   }
 
   return `/api/events?${params.toString()}`;
+}
+
+function normalizeSearchText(value) {
+  return String(value || "").toLowerCase().trim();
+}
+
+function getEventSearchHaystack(event) {
+  const props = event.extendedProps || {};
+  return normalizeSearchText(
+    [
+      event.title,
+      event.category,
+      props.description,
+      props.location_name,
+      props.location_address,
+      props.organizer,
+      props.source_name,
+    ].join(" ")
+  );
+}
+
+function eventMatchesSearch(event) {
+  if (!activeSearchTerm) return true;
+  const terms = activeSearchTerm.split(/\s+/).filter(Boolean);
+  const haystack = getEventSearchHaystack(event);
+  return terms.every((term) => haystack.includes(term));
+}
+
+function applyClientEventFilters(events) {
+  return events.filter(eventMatchesSearch);
+}
+
+function updateCategorySelection(selectAll) {
+  activeCategories = new Set(selectAll ? categories.map((category) => category.slug) : []);
+  renderCategoryFilters();
+  calendar.refetchEvents();
 }
 
 function toDateKey(value) {
@@ -403,12 +445,77 @@ function isPlaceholderOrInvalidUrl(url) {
 function setLink(linkEl, href, fallbackText) {
   if (href && !isPlaceholderOrInvalidUrl(href)) {
     linkEl.href = href;
-    linkEl.style.display = "inline";
+    linkEl.style.display = "inline-flex";
   } else {
     linkEl.removeAttribute("href");
     linkEl.style.display = "none";
   }
   linkEl.textContent = fallbackText;
+}
+
+function slugifyFilename(value) {
+  return normalizeSearchText(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "hong-kong-event";
+}
+
+function escapeIcsText(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
+}
+
+function formatIcsDate(date) {
+  return new Date(date).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+function setCalendarDownloadLink(event) {
+  const props = event.extendedProps || {};
+  const start = props.original_start ? new Date(props.original_start) : event.start;
+
+  if (!start) {
+    calendarLink.removeAttribute("href");
+    calendarLink.style.display = "none";
+    return;
+  }
+
+  const end = props.original_end ? new Date(props.original_end) : event.end || new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const location = [props.location_name, props.location_address].filter(Boolean).join(", ");
+  const description = [
+    props.description,
+    props.ticket_url && !isPlaceholderOrInvalidUrl(props.ticket_url) ? `Tickets: ${props.ticket_url}` : "",
+    props.discount_url && !isPlaceholderOrInvalidUrl(props.discount_url) ? `Offer: ${props.discount_url}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const generatedAt = formatIcsDate(new Date());
+  const uid = `${slugifyFilename(event.title)}-${formatIcsDate(start)}@hk-event-calendar`;
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//HK Event Calendar//EN",
+    "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${generatedAt}`,
+    `DTSTART:${formatIcsDate(start)}`,
+    `DTEND:${formatIcsDate(end)}`,
+    `SUMMARY:${escapeIcsText(event.title)}`,
+    location ? `LOCATION:${escapeIcsText(location)}` : "",
+    description ? `DESCRIPTION:${escapeIcsText(description)}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ]
+    .filter(Boolean)
+    .join("\r\n");
+
+  calendarLink.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+  calendarLink.download = `${slugifyFilename(event.title)}.ics`;
+  calendarLink.style.display = "inline-flex";
+  calendarLink.textContent = "Add to Calendar";
 }
 
 function formatEventMeta(event) {
@@ -440,6 +547,7 @@ function showEventDetails(event) {
   setLink(mapLink, props.map_url, "Open Map");
   setLink(ticketLink, props.ticket_url, "Tickets / Registration");
   setLink(discountLink, props.discount_url, props.discount_text || "Discount Offer");
+  setCalendarDownloadLink(event);
 
   dialog.showModal();
 }
@@ -473,6 +581,25 @@ controlsToggle.addEventListener("click", (event) => {
 
 controlsMenu.addEventListener("click", (event) => {
   event.stopPropagation();
+});
+
+eventSearchInput.addEventListener("input", () => {
+  activeSearchTerm = normalizeSearchText(eventSearchInput.value);
+  calendar.refetchEvents();
+});
+
+clearSearchButton.addEventListener("click", () => {
+  eventSearchInput.value = "";
+  activeSearchTerm = "";
+  calendar.refetchEvents();
+});
+
+selectAllCategoriesButton.addEventListener("click", () => {
+  updateCategorySelection(true);
+});
+
+clearCategoriesButton.addEventListener("click", () => {
+  updateCategorySelection(false);
 });
 
 scrapeButton.addEventListener("click", async () => {
@@ -552,16 +679,19 @@ calendar = new FullCalendar.Calendar(calendarEl, {
           }
           const response = await fetch(buildEventsUrl(fetchInfo));
           const rawEvents = await response.json();
+          const filteredEvents = applyClientEventFilters(rawEvents);
           const viewType = getCalendarViewType(fetchInfo);
-          const events = viewType === "dayGridMonth" ? [] : rawEvents;
+          const events = viewType === "dayGridMonth" ? [] : filteredEvents;
           successCallback(events);
           if (viewType === "dayGridMonth") {
-            queueMonthMarkerPaint(rawEvents);
+            queueMonthMarkerPaint(filteredEvents);
           }
-          if (rawEvents.length === 0) {
-            updateCalendarStatus("No events landed in this date range yet.");
+          if (filteredEvents.length === 0) {
+            updateCalendarStatus(activeSearchTerm ? `No events match "${activeSearchTerm}" in this view.` : "No events landed in this date range yet.");
+          } else if (activeSearchTerm) {
+            updateCalendarStatus(`${filteredEvents.length} of ${rawEvents.length} events match "${activeSearchTerm}"`);
           } else {
-            updateCalendarStatus(`${rawEvents.length} event${rawEvents.length === 1 ? "" : "s"} in this view`);
+            updateCalendarStatus(`${filteredEvents.length} event${filteredEvents.length === 1 ? "" : "s"} in this view`);
           }
         } catch (error) {
           updateCalendarStatus("Could not load events right now.");
