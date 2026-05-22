@@ -1,6 +1,7 @@
 {
-  "mcpServers": {
+  "servers": {
     "azureDevOps": {
+      "type": "stdio",
       "command": "npx",
       "args": ["-y", "@tiberriver256/mcp-server-azure-devops@0.1.45"],
       "env": {

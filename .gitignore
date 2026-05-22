@@ -34,7 +34,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 .idea/
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 *.swp
 *.swo
 *~
@@ -47,3 +48,4 @@ logs/
 *.sqlite
 *.db
 events.db
+scripts/ado_backlog_seed.py

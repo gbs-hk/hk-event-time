@@ -4,7 +4,7 @@
   "mcp": {
     "azureDevOps": {
       "type": "local",
-      "command": ["npx", "-y", "@tiberriver256/mcp-server-azure-devops"],
+      "command": ["npx", "-y", "@tiberriver256/mcp-server-azure-devops@0.1.45"],
       "environment": {
         "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/gbs-hk",
         "AZURE_DEVOPS_AUTH_METHOD": "azure-cli",

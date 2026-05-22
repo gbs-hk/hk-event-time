@@ -213,6 +213,20 @@ flowchart LR
   Flask --> UI["Calendar/list frontend"]
 ```
 
+## Agents, backlog, and MCP
+
+Work items live in [Azure DevOps](https://dev.azure.com/gbs-hk/hk-event-time) (GitHub is the code remote). The **Azure DevOps MCP** is configured per editor in [AGENTS.md](AGENTS.md):
+
+| Tool | Config file |
+| --- | --- |
+| Cursor | [.cursor/mcp.json](.cursor/mcp.json) |
+| VS Code / Copilot Chat | [.vscode/mcp.json](.vscode/mcp.json) |
+| GitHub Copilot CLI | [.github/mcp.json](.github/mcp.json) |
+| Kilo Code | [kilo.jsonc](kilo.jsonc) |
+| OpenAI Codex | [.codex/config.toml](.codex/config.toml) |
+
+Auth: `az login` and `az extension add --name azure-devops` (see AGENTS.md). Reload or restart MCP after pulling config changes. Optional: **Azure** Cursor plugin in [.cursor/settings.json](.cursor/settings.json) for App Service diagnostics (not the DevOps board).
+
 ## Development Notes
 
 - Keep the app as a single Flask stack unless the deployment architecture is intentionally changed.
