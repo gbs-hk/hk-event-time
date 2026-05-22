@@ -14,18 +14,46 @@ This runbook explains how to diagnose and recover common production issues for H
 
 ## Required Access
 
-- GitHub access to `gbs-hk/hk-event-time`.
-- Azure access to the `hk-event-time` App Service or help from someone who has it.
-- Azure CLI installed locally.
-- Authenticated Azure CLI session:
+### Production deploy boundary
 
-```bash
-az login
-```
+**All application code and App Service configuration changes go through GitHub**, not the Azure Portal or `az webapp` write commands:
+
+1. Commit and **push to `main`** on [`gbs-hk/hk-event-time`](https://github.com/gbs-hk/hk-event-time) (no teacher approval or PR required; the team is responsible for the outcome).
+2. [`.github/workflows/azure-deploy.yml`](../.github/workflows/azure-deploy.yml) deploys on every push to `main` via OIDC (build, app settings merge, zip deploy).
+
+Optional: use a branch and PR for your own review, but that is not required.
+
+Do not use Portal **Configuration**, `az webapp config appsettings set`, `az webapp deploy`, `az webapp restart`, or SCM publish for production changes.
+
+### Students (`hk-event-time-student-agents`)
+
+Entra group members in project **Contributors** on [Azure DevOps](https://dev.azure.com/gbs-hk/hk-event-time) with **Write** on the GitHub repo.
+
+Azure RBAC on resource group `hk-event-time` (read + monitoring/performance **write only**):
+
+| Role | Scope | Use for |
+|------|-------|---------|
+| Reader | Resource group | Read app config, list resources |
+| Monitoring Reader | Resource group | View metrics and alert state |
+| Monitoring Contributor | Resource group | Availability tests, alerts, action groups, diagnostic settings |
+| Application Insights Component Contributor | `appinsights-hk-event-time` | Workbooks, dashboards, KQL |
+| Load Test Owner | Resource group | Azure Load Testing resources and test runs |
+
+Students **do not** have Website Contributor, Contributor, or Owner on the App Service or resource group.
+
+### Teachers / platform owners
+
+Contributor (or equivalent) on the App Service or resource group for `az webapp restart`, log stream, and emergency app settings changes outside the pipeline.
+
+### Everyone
+
+- Azure CLI installed locally.
+- Authenticated session: `az login`
+- GitHub access to `gbs-hk/hk-event-time` (students: Write, including push to `main`; deploy secrets stay in Actions).
 
 ## Fast Checks
 
-Use these before making changes.
+Use these before making changes. **All roles** can run the `curl` probes.
 
 ```bash
 curl -i https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/
@@ -33,12 +61,18 @@ curl -i https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.ne
 curl -i "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/api/events?start=2026-05-01T00:00:00%2B08:00&end=2026-06-01T00:00:00%2B08:00"
 ```
 
-Check Azure app configuration and logs:
+**Students:** inspect app settings read-only; use Application Insights / Log Analytics for logs and metrics.
 
 ```bash
 az webapp config show --name hk-event-time --resource-group hk-event-time
 az webapp config appsettings list --name hk-event-time --resource-group hk-event-time
+```
+
+**Teachers only** (live log stream and restart):
+
+```bash
 az webapp log tail --name hk-event-time --resource-group hk-event-time
+az webapp restart --name hk-event-time --resource-group hk-event-time
 ```
 
 ## 1. Site Down
@@ -68,9 +102,10 @@ Open the latest GitHub Actions run:
 
 <https://github.com/gbs-hk/hk-event-time/actions>
 
-Then inspect Azure logs:
+Then inspect logs (**teachers:** `az webapp log tail`; **students:** Application Insights → Logs / Failures for `hk-event-time`):
 
 ```bash
+# Teachers only
 az webapp log tail --name hk-event-time --resource-group hk-event-time
 ```
 
@@ -84,17 +119,17 @@ Look for startup errors such as:
 
 ### Recovery
 
-Restart the Azure App Service:
+**Teachers only** — restart the Azure App Service:
 
 ```bash
 az webapp restart --name hk-event-time --resource-group hk-event-time
 ```
 
-If the latest deploy introduced the outage, use the rollback section below.
+**Students:** escalate to a teacher for restart; if the latest deploy introduced the outage, use the rollback section (`git revert` and push to `main`).
 
 ### Escalate When
 
-- You do not have Azure permission to inspect logs or restart the app.
+- You need a teacher to restart the app or change app settings outside the deploy workflow.
 - The app still fails after restart and the logs show an Azure platform or permission issue.
 
 ## 2. Health Degraded
@@ -231,16 +266,17 @@ Check these code paths:
 - `app/scrapers/sources.py` decides which scrapers are active.
 - `app/config.py` controls `SCHEDULE_HOUR_UTC`, `SCRAPE_SOURCE_MODE`, and `SCRAPE_FOCUS_CATEGORIES`.
 
-Inspect Azure logs for scheduler or scraper errors:
+Inspect logs for scheduler or scraper errors (teachers: log tail; students: Application Insights).
 
 ```bash
+# Teachers only
 az webapp log tail --name hk-event-time --resource-group hk-event-time
 ```
 
 ### Recovery
 
 - Run a manual scrape.
-- Restart the app if the scheduler appears stuck:
+- **Teachers only** — restart the app if the scheduler appears stuck:
 
 ```bash
 az webapp restart --name hk-event-time --resource-group hk-event-time
