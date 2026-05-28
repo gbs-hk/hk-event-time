@@ -90,10 +90,10 @@ curl -i https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.ne
 curl -i https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health
 ```
 
-Expected health response:
+Expected healthy response:
 
 ```json
-{"status":"ok"}
+{"database":{"status":"ok"},"status":"ok"}
 ```
 
 ### Diagnose
@@ -149,14 +149,29 @@ curl -i https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.ne
 Healthy result:
 
 - HTTP status `200`
-- Body contains `{"status":"ok"}`
+- Body contains top-level `"status":"ok"`
+- Body contains database `"status":"ok"`
+
+Unhealthy database result:
+
+- HTTP status `503`
+- Body contains top-level `"status":"down"`
+- Body contains database `"status":"down"`
+
+Example unhealthy response:
+
+```json
+{"database":{"error":"OperationalError","status":"down"},"status":"down"}
+```
 
 ### Diagnose
 
-Check the Flask route in `app/main.py`. The `/health` route should return:
+Check the Flask route in `app/main.py`. The `/health` route calls the database readiness check from `app/database.py`.
+
+The healthy response should return:
 
 ```json
-{"status":"ok"}
+{"database":{"status":"ok"},"status":"ok"}
 ```
 
 Check Azure app settings:

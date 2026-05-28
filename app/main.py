@@ -8,7 +8,7 @@ from flask import Flask, jsonify, render_template, request
 
 from .categories import categories_for_api
 from .config import Config
-from .database import Base, engine
+from .database import Base, check_database_ready, engine
 from .scheduler import start_scheduler
 from .services import get_color_map, query_events, run_scrape, run_scrape_detailed, source_event_counts_upcoming
 
@@ -32,7 +32,10 @@ def create_app() -> Flask:
 
     @app.get("/health")
     def health():
-        return jsonify({"status": "ok"})
+        database = check_database_ready()
+        status = "ok" if database["status"] == "ok" else "down"
+        status_code = 200 if status == "ok" else 503
+        return jsonify({"status": status, "database": database}), status_code
 
     @app.get("/api/categories")
     def categories():
