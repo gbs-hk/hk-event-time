@@ -15,3 +15,27 @@
   - **Kilo Code:** [kilo.jsonc](kilo.jsonc) — `mcp` → local stdio; Settings → Agent Behaviour → MCP Servers ([Kilo MCP](https://kilo.ai/docs/automate/mcp/using-in-kilo-code)). On Windows for `npx` stdio hosts, prefer `cmd` plus `/c`, `npx`, `-y`, … per Kilo’s platform notes.
   - **OpenAI Codex:** [.codex/config.toml](.codex/config.toml) — `[mcp_servers.azure_devops]`; merge into `~/.codex/config.toml` if your build only reads user config ([Codex MCP](https://developers.openai.com/codex/mcp)).
   - **Auth:** Run [`az login`](https://learn.microsoft.com/cli/azure/authenticate-azure-cli), install the boards extension (`az extension add --name azure-devops`), and use `AZURE_DEVOPS_AUTH_METHOD=azure-cli`. Contributors need access to org `gbs-hk` / project `hk-event-time`. For PAT-only setups, switch to `pat` plus `AZURE_DEVOPS_PAT` in local secrets — never commit tokens.
+
+## Cursor Cloud specific instructions
+
+Single-process Flask app; no Docker Compose or separate database service for local dev (SQLite file `events.db` in the repo root).
+
+### Commands (see [README.md](README.md))
+
+| Task | Command (from repo root, with `.venv` activated) |
+| --- | --- |
+| Install / refresh deps | `pip install -r requirements.txt` |
+| Run dev server | `python run.py` → http://127.0.0.1:5050 |
+| Tests | `python -m unittest discover -s tests` |
+| Production-style smoke | `gunicorn --bind 127.0.0.1:8000 wsgi:app` (Azure uses port **8000** via `startup.sh`) |
+
+There is no repo-configured linter or CI lint job. Optional: `pip install ruff && ruff check app tests`.
+
+### Gotchas
+
+- **Virtualenv:** Use `/workspace/.venv` (`python3 -m venv .venv`). On fresh Debian/Ubuntu images, `python3 -m venv` fails until `python3.12-venv` is installed (`sudo apt-get install -y python3.12-venv`). CI/deploy pin **Python 3.10** (`runtime.txt`); local **3.12** is fine for development.
+- **Long-running server:** Start `python run.py` in a **tmux** session (e.g. `flask-dev-server`), not a one-shot background shell, so it stays up across agent steps.
+- **Scheduler:** APScheduler runs only when `FLASK_ENV=production` or in the Flask debug **reloader child** (`WERKZEUG_RUN_MAIN=true`). Local `python run.py` does not run the daily scrape in the parent process; use `POST /api/scrape-now` to populate data (first run can take a few minutes while hitting external sources).
+- **Sample data:** `SCRAPE_INCLUDE_SAMPLE=1` by default; events still appear after a scrape, not on a bare `create_all` alone.
+- **Env file:** Optional `cp .env.example .env`. Prefer live keys in `app/config.py` over stale keys in `.env.example` that are no longer read.
+- **PostgreSQL:** Only needed if `DATABASE_URL` is set; default SQLite needs no extra service.
