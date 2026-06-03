@@ -53,7 +53,6 @@ Requirements:
 Run locally:
 
 ```bash
-cd /Users/leozille/Downloads/hk-event-time
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -200,6 +199,8 @@ If Azure CLI is installed and authenticated, production can be inspected with:
 az webapp config show --name hk-event-time --resource-group hk-event-time
 az webapp log tail --name hk-event-time --resource-group hk-event-time
 ```
+
+**Students** (Epic 14 observability in Azure Portal — no local scripts): [docs/student-azure-access.md](docs/student-azure-access.md)
 
 ## Architecture
 

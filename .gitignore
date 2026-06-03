@@ -48,4 +48,3 @@ logs/
 *.sqlite
 *.db
 events.db
-scripts/ado_backlog_seed.py
