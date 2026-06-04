@@ -8,7 +8,7 @@
       href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260521-fit-links" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260604-a11y-keyboard" />
   </head>
   <body>
     <div class="page-shell">
@@ -58,9 +58,9 @@
       </main>
     </div>
 
-    <dialog id="eventDialog">
+    <dialog id="eventDialog" aria-labelledby="eventTitle">
       <article class="dialog-card">
-        <h2 id="eventTitle"></h2>
+        <h2 id="eventTitle">Event details</h2>
         <p id="eventMeta"></p>
         <p id="eventDescription"></p>
         <div class="links">
@@ -73,12 +73,12 @@
       </article>
     </dialog>
 
-    <dialog id="dayDialog" class="day-dialog">
+    <dialog id="dayDialog" class="day-dialog" aria-labelledby="dayTitle">
       <article class="day-sheet">
         <header class="day-sheet-header">
           <div>
             <p class="eyebrow">Selected Day</p>
-            <h2 id="dayTitle"></h2>
+            <h2 id="dayTitle">Selected day events</h2>
             <p id="daySubtitle"></p>
           </div>
           <button id="closeDayDialog" class="ghost">Close</button>
@@ -88,6 +88,6 @@
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-    <script src="/static/app.js?v=20260521-fit-links"></script>
+    <script src="/static/app.js?v=20260604-a11y-keyboard"></script>
   </body>
 </html>

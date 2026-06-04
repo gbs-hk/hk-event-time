@@ -67,6 +67,39 @@ let calendar;
 let monthPaintToken = 0;
 let latestEventsByDate = new Map();
 let activeSearchTerm = "";
+let eventDialogReturnFocus = null;
+let dayDialogReturnFocus = null;
+
+function getFocusableElements(container) {
+  return Array.from(
+    container.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((element) => element.offsetParent !== null || element === document.activeElement);
+}
+
+function trapDialogFocus(event, container) {
+  if (event.key !== "Tab") return;
+  const focusable = getFocusableElements(container);
+  if (focusable.length === 0) return;
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function restoreFocus(element) {
+  if (element && typeof element.focus === "function" && document.contains(element)) {
+    element.focus();
+  }
+}
 
 async function loadCategories() {
   const response = await fetch("/api/categories");
@@ -307,6 +340,7 @@ function formatEventTimeRange(event) {
 }
 
 function openDayEvents(dateKey, events) {
+  dayDialogReturnFocus = document.activeElement;
   const grouped = groupEventsByCategory(events);
   dayTitle.textContent = dayTitleFormatter.format(dateFromDateKey(dateKey));
   daySubtitle.textContent = `${events.length} event${events.length === 1 ? "" : "s"} grouped by category`;
@@ -356,6 +390,7 @@ function openDayEvents(dateKey, events) {
   });
 
   dayDialog.showModal();
+  closeDayDialogButton.focus();
 }
 
 function bindDayCell(cell) {
@@ -401,7 +436,9 @@ function paintMonthMarkers(events) {
       pill.type = "button";
       pill.className = "month-category-pill";
       pill.style.setProperty("--event-color", category.color);
-      pill.title = `${category.label}: ${categoryEvents.length} event${categoryEvents.length === 1 ? "" : "s"}`;
+      const pillLabel = `${category.label}: ${categoryEvents.length} event${categoryEvents.length === 1 ? "" : "s"} on ${dayTitleFormatter.format(dateFromDateKey(cell.dataset.date))}`;
+      pill.title = pillLabel;
+      pill.setAttribute("aria-label", pillLabel);
       pill.addEventListener("click", (clickEvent) => {
         clickEvent.preventDefault();
         clickEvent.stopPropagation();
@@ -540,6 +577,7 @@ function formatEventMeta(event) {
 }
 
 function showEventDetails(event) {
+  eventDialogReturnFocus = document.activeElement;
   const props = event.extendedProps;
 
   eventTitle.textContent = event.title;
@@ -552,6 +590,7 @@ function showEventDetails(event) {
   setCalendarDownloadLink(event);
 
   dialog.showModal();
+  closeDialogButton.focus();
 }
 
 function updateViewSummary() {
@@ -566,8 +605,12 @@ function updateCalendarStatus(message) {
 }
 
 function closeControlsMenu() {
+  const wasOpen = !controlsMenu.hidden;
   controlsMenu.hidden = true;
   controlsToggle.setAttribute("aria-expanded", "false");
+  if (wasOpen && controlsMenu.contains(document.activeElement)) {
+    controlsToggle.focus();
+  }
 }
 
 function toggleControlsMenu() {
@@ -619,6 +662,30 @@ scrapeButton.addEventListener("click", async () => {
 
 closeDialogButton.addEventListener("click", () => dialog.close());
 closeDayDialogButton.addEventListener("click", () => dayDialog.close());
+
+dialog.addEventListener("keydown", (event) => {
+  trapDialogFocus(event, dialog);
+  if (event.key === "Escape") {
+    dialog.close();
+  }
+});
+
+dayDialog.addEventListener("keydown", (event) => {
+  trapDialogFocus(event, dayDialog);
+  if (event.key === "Escape") {
+    dayDialog.close();
+  }
+});
+
+dialog.addEventListener("close", () => {
+  restoreFocus(eventDialogReturnFocus);
+  eventDialogReturnFocus = null;
+});
+
+dayDialog.addEventListener("close", () => {
+  restoreFocus(dayDialogReturnFocus);
+  dayDialogReturnFocus = null;
+});
 
 document.addEventListener("click", (event) => {
   closeControlsMenu();
@@ -719,7 +786,10 @@ calendar = new FullCalendar.Calendar(calendarEl, {
   },
   eventDidMount: (info) => {
     const startLabel = info.event.start ? timeFormatter.format(info.event.start) : "";
+    const dateLabel = info.event.start ? detailFormatter.format(info.event.start) : "Date TBD";
+    const label = `${info.event.title}, ${dateLabel}`;
     info.el.title = startLabel ? `${info.event.title} - ${startLabel}` : info.event.title;
+    info.el.setAttribute("aria-label", label);
   },
 });
 
