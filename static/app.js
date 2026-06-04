@@ -101,6 +101,26 @@ function restoreFocus(element) {
   }
 }
 
+function repairCalendarPresentationRoles() {
+  if (!calendarEl) return;
+  calendarEl.querySelectorAll('[role="presentation"]').forEach((element) => {
+    element.removeAttribute("role");
+  });
+  calendarEl.querySelectorAll(".fc-daygrid-day-number").forEach((element, index) => {
+    const dayCell = element.closest("[data-date]");
+    const date = dayCell?.getAttribute("data-date");
+    const isEmptyLabel = element.textContent.replace(/\u00a0/g, "").trim() === "";
+
+    if (date) {
+      element.id = `calendar-day-${date}`;
+      element.setAttribute("aria-label", dayTitleFormatter.format(new Date(`${date}T12:00:00Z`)));
+    } else if (isEmptyLabel) {
+      element.id = `calendar-empty-day-${index}`;
+      element.setAttribute("aria-hidden", "true");
+    }
+  });
+}
+
 async function loadCategories() {
   const response = await fetch("/api/categories");
   categories = await response.json();
@@ -735,6 +755,7 @@ calendar = new FullCalendar.Calendar(calendarEl, {
     clearMonthMarkers();
     updateViewSummary();
     updateCalendarStatus("Loading events for this view...");
+    requestAnimationFrame(repairCalendarPresentationRoles);
   },
   eventSources: [
     {
@@ -790,14 +811,17 @@ calendar = new FullCalendar.Calendar(calendarEl, {
     const label = `${info.event.title}, ${dateLabel}`;
     info.el.title = startLabel ? `${info.event.title} - ${startLabel}` : info.event.title;
     info.el.setAttribute("aria-label", label);
+    requestAnimationFrame(repairCalendarPresentationRoles);
   },
 });
 
 (async () => {
   await loadCategories();
   calendar.render();
+  repairCalendarPresentationRoles();
   updateViewSummary();
   requestAnimationFrame(() => {
+    repairCalendarPresentationRoles();
     calendar.updateSize();
     calendar.refetchEvents();
   });

@@ -50,8 +50,7 @@ jobs:
           npx --yes pa11y@9.1.1 http://127.0.0.1:5050/ \
             --level error \
             --threshold 0 \
-            --runner htmlcs \
-            --ignore "WCAG2AA.Principle1.Guideline1_3.1_3_1.F92,ARIA4"
+            --runner htmlcs
 
       - name: Show Flask log on failure
         if: failure()
