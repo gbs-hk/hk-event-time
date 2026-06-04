@@ -47,14 +47,12 @@ jobs:
 
       - name: Run pa11y
         run: |
-          set +e
           npx --yes pa11y@9.1.1 http://127.0.0.1:5050/ \
             --level error \
             --threshold 0 \
             --runner htmlcs \
             --reporter json \
-            > pa11y-results.json || PA11Y_EXIT=$?
-          PA11Y_EXIT="${PA11Y_EXIT:-0}"
+            > pa11y-results.json || true
           cat pa11y-results.json
           node <<'NODE'
           const fs = require("fs");
@@ -79,9 +77,6 @@ jobs:
           NODE_EXIT=$?
           if [ "$NODE_EXIT" -ne 0 ]; then
             exit "$NODE_EXIT"
-          fi
-          if [ "$PA11Y_EXIT" -ne 0 ]; then
-            echo "pa11y exited with ${PA11Y_EXIT}, but all reported issues were known ignores."
           fi
           exit 0
 
