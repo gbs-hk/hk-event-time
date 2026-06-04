@@ -2,6 +2,8 @@
 
 Hong Kong Event Time is a single Flask web app that turns event listings into a browsable Hong Kong calendar. Think of it as a small pipeline: collect event data, clean it, store it, serve it, and render it in the browser.
 
+For active recall, use the paired [quiz prep cards](quiz-prep.md).
+
 ## Flow
 
 ```mermaid
