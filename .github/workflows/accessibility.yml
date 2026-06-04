@@ -47,10 +47,42 @@ jobs:
 
       - name: Run pa11y
         run: |
-          npx --yes pa11y http://127.0.0.1:5050/ \
+          set +e
+          npx --yes pa11y@9.1.1 http://127.0.0.1:5050/ \
             --level error \
             --threshold 0 \
-            --ignore "WCAG2AA.Principle1.Guideline1_3.1_3_1.F92,ARIA4"
+            --runner htmlcs \
+            --reporter json \
+            > pa11y-results.json
+          PA11Y_EXIT=$?
+          cat pa11y-results.json
+          node <<'NODE'
+          const fs = require("fs");
+          const ignoredCodes = new Set([
+            "WCAG2AA.Principle1.Guideline1_3.1_3_1.F92,ARIA4",
+          ]);
+          let issues;
+          try {
+            issues = JSON.parse(fs.readFileSync("pa11y-results.json", "utf8"));
+          } catch (error) {
+            console.error("pa11y did not produce parseable JSON output.");
+            process.exit(1);
+          }
+          const blocking = issues.filter((issue) => issue.type === "error" && !ignoredCodes.has(issue.code));
+          const ignored = issues.length - blocking.length;
+          console.log(`pa11y blocking errors: ${blocking.length}; ignored known issues: ${ignored}`);
+          if (blocking.length > 0) {
+            console.error(JSON.stringify(blocking, null, 2));
+            process.exit(1);
+          }
+NODE
+          NODE_EXIT=$?
+          if [ "$NODE_EXIT" -ne 0 ]; then
+            exit "$NODE_EXIT"
+          fi
+          if [ "$PA11Y_EXIT" -ne 0 ]; then
+            echo "pa11y exited with ${PA11Y_EXIT}, but all reported issues were known ignores."
+          fi
 
       - name: Show Flask log on failure
         if: failure()
