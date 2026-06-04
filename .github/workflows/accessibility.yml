@@ -56,9 +56,17 @@ jobs:
           cat pa11y-results.json
           node <<'NODE'
           const fs = require("fs");
-          const ignoredCodes = new Set([
-            "WCAG2AA.Principle1.Guideline1_3.1_3_1.F92,ARIA4",
-          ]);
+          function isKnownFullCalendarPresentationIssue(issue) {
+            return (
+              issue.type === "error" &&
+              issue.code &&
+              issue.code.includes("F92") &&
+              issue.message &&
+              issue.message.includes("role is \"presentation\"") &&
+              issue.selector &&
+              issue.selector.startsWith("#calendar")
+            );
+          }
           let issues;
           try {
             issues = JSON.parse(fs.readFileSync("pa11y-results.json", "utf8"));
@@ -66,7 +74,7 @@ jobs:
             console.error("pa11y did not produce parseable JSON output.");
             process.exit(1);
           }
-          const blocking = issues.filter((issue) => issue.type === "error" && !ignoredCodes.has(issue.code));
+          const blocking = issues.filter((issue) => issue.type === "error" && !isKnownFullCalendarPresentationIssue(issue));
           const ignored = issues.length - blocking.length;
           console.log(`pa11y blocking errors: ${blocking.length}; ignored known issues: ${ignored}`);
           if (blocking.length > 0) {
