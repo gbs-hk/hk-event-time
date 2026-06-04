@@ -83,6 +83,7 @@ jobs:
           if [ "$PA11Y_EXIT" -ne 0 ]; then
             echo "pa11y exited with ${PA11Y_EXIT}, but all reported issues were known ignores."
           fi
+          exit 0
 
       - name: Show Flask log on failure
         if: failure()
