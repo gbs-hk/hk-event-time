@@ -23,45 +23,42 @@ This runbook explains how to diagnose and recover common production issues for H
 
 Optional: use a branch and PR for your own review, but that is not required.
 
-Do not use Portal **Configuration**, `az webapp config appsettings set`, `az webapp deploy`, `az webapp restart`, or SCM publish for production changes.
+Do not use Portal or `az` for routine **application** deploys (zip/SCM/restart). Students may use Portal **Configuration** for observability-related app settings when needed for backlog work; code changes still go through GitHub → Actions.
 
 ### Students (`hk-event-time-student-agents`)
 
-Entra group members in project **Contributors** on [Azure DevOps](https://dev.azure.com/gbs-hk/hk-event-time) with **Write** on the GitHub repo.
+Entra group members need **three** layers (see [student-entitlements.md](student-entitlements.md)):
 
-Azure RBAC for Entra group `hk-event-time-student-agents` (read + monitoring/performance **write only**; no App Service deploy):
+1. **Entra group** `hk-event-time-student-agents` (Azure RBAC below).
+2. **Azure DevOps** project **Contributors**, **hk-event-time Team**, and **Build Administrators** (per-user; the Entra group is not synced into DevOps).
+3. **GitHub** **Write** on [`gbs-hk/hk-event-time`](https://github.com/gbs-hk/hk-event-time).
+
+Azure RBAC for Entra group `hk-event-time-student-agents`:
 
 | Role | Scope | Use for |
 |------|-------|---------|
 | Reader | Subscription | See subscription in portal filters; list resources |
-| Reader | Resource group | Read app config, list resources |
+| Reader | Resource group | Read resources |
+| Website Contributor | Resource group + App Service `hk-event-time` | App settings (e.g. `APPLICATIONINSIGHTS_CONNECTION_STRING` for Epic 15.1); portal config — routine **code** deploy still via GitHub |
 | Monitoring Reader | Resource group | View metrics and alert state |
-| Monitoring Contributor | Resource group | Availability tests, alerts, action groups, diagnostic settings (story **2.2**) |
+| Monitoring Contributor | Resource group + `appinsights-hk-event-time` | Availability tests, alerts, action groups, diagnostics (stories **2.2**, **2.3**) |
+| Monitoring Metrics Publisher | App Service `hk-event-time` | Custom metrics from the app (after students add instrumentation) |
 | Application Insights Component Contributor | `appinsights-hk-event-time` | Metric/log alert rules, workbooks, dashboards (story **2.3**) |
 | Log Analytics Reader | `ws-3a240a56-southeasta` (linked workspace) | Run KQL in Logs and in alert query text (story **2.3**) |
-| Log Analytics Contributor | `ws-3a240a56-southeasta` (linked workspace) | Create/edit log-based alert rules on the workspace (story **2.3**) |
-| Load Test Owner | Resource group | Azure Load Testing resources and test runs |
+| Log Analytics Contributor | Workspace + resource group | Create/edit log-based alert rules (story **2.3**) |
+| Load Test Owner | Resource group | Azure Load Testing resources and test runs (Epic 16) |
 
-**Students:** access is applied on the Entra group above — use the portal only. Bookmark links for Epic 14 are in [student-azure-access.md](student-azure-access.md) and on [work item 14](https://dev.azure.com/gbs-hk/hk-event-time/_workitems/edit/14). No repo scripts or `az` CLI required.
+**Students:** portal bookmarks in [student-azure-access.md](student-azure-access.md); boards at [work item 14](https://dev.azure.com/gbs-hk/hk-event-time/_workitems/edit/14) and the [Epics board](https://dev.azure.com/gbs-hk/hk-event-time/_boards/board/t/hk-event-time%20Team/Epics).
 
-**Teachers:** after adding someone to the Entra group, confirm the seven roles in the table are still assigned to `hk-event-time-student-agents` (Portal → resource group **hk-event-time** → **Access control (IAM)** → **Role assignments**, filter by that group). Re-create any missing assignment in the portal, or run once with `az login` as Owner:
+**Teachers:** after adding someone to the Entra group, run (Owner on subscription + DevOps admin):
 
 ```bash
-GROUP_ID=9353131a-4e06-42f8-9d04-5d58c86f59b4
-SUB=$(az account show --query id -o tsv)
-RG="${SUB}/resourceGroups/hk-event-time"
-WS=$(az monitor app-insights component show -g hk-event-time -a appinsights-hk-event-time --query workspaceResourceId -o tsv)
-AI="${RG}/providers/microsoft.insights/components/appinsights-hk-event-time"
-for ROLE in Reader "Monitoring Reader" "Monitoring Contributor" "Load Test Owner"; do
-  az role assignment create --assignee-object-id "$GROUP_ID" --assignee-principal-type Group --role "$ROLE" --scope "$RG" 2>/dev/null || true
-done
-az role assignment create --assignee-object-id "$GROUP_ID" --assignee-principal-type Group --role Reader --scope "$SUB" 2>/dev/null || true
-az role assignment create --assignee-object-id "$GROUP_ID" --assignee-principal-type Group --role "Application Insights Component Contributor" --scope "$AI" 2>/dev/null || true
-az role assignment create --assignee-object-id "$GROUP_ID" --assignee-principal-type Group --role "Log Analytics Reader" --scope "$WS" 2>/dev/null || true
-az role assignment create --assignee-object-id "$GROUP_ID" --assignee-principal-type Group --role "Log Analytics Contributor" --scope "$WS" 2>/dev/null || true
+bash scripts/apply-student-entitlements.sh
 ```
 
-Students **do not** have Website Contributor, Contributor, or Owner on the App Service or resource group.
+Or confirm IAM in Portal → **hk-event-time** → **Access control (IAM)** → filter `hk-event-time-student-agents`, and add the new email to DevOps/GitHub per [student-entitlements.md](student-entitlements.md).
+
+Students **do not** have Contributor or Owner on the subscription; production **application** deploy remains GitHub Actions on push to `main`.
 
 ### Teachers / platform owners
 
