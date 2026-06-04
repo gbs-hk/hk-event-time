@@ -75,7 +75,7 @@ jobs:
             console.error(JSON.stringify(blocking, null, 2));
             process.exit(1);
           }
-NODE
+          NODE
           NODE_EXIT=$?
           if [ "$NODE_EXIT" -ne 0 ]; then
             exit "$NODE_EXIT"
