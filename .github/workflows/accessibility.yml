@@ -53,8 +53,8 @@ jobs:
             --threshold 0 \
             --runner htmlcs \
             --reporter json \
-            > pa11y-results.json
-          PA11Y_EXIT=$?
+            > pa11y-results.json || PA11Y_EXIT=$?
+          PA11Y_EXIT="${PA11Y_EXIT:-0}"
           cat pa11y-results.json
           node <<'NODE'
           const fs = require("fs");
