@@ -1083,6 +1083,33 @@ dialog::backdrop {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .primary:hover,
+  .ghost:hover,
+  .menu-refresh:hover,
+  .menu-refresh:focus-visible,
+  .menu-small-button:hover,
+  .menu-small-button:focus-visible,
+  .filter-chip:hover,
+  .month-category-pill:hover,
+  .month-category-pill:focus-visible,
+  .day-event-card:hover,
+  .day-event-card:focus-visible,
+  .links a:hover,
+  .links a:focus-visible {
+    transform: none;
+  }
+}
+
 @media (max-width: 900px) {
   .page-shell {
     padding: 0;

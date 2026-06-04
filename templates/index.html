@@ -8,16 +8,16 @@
       href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260604-a11y-keyboard" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260604-a11y-perceivable" />
   </head>
   <body>
     <div class="page-shell">
-      <main class="calendar-panel">
+      <main class="calendar-panel" aria-label="Hong Kong event calendar">
         <div class="calendar-meta">
           <div>
             <p class="eyebrow">Hong Kong Events</p>
             <strong id="viewRangeLabel">Loading...</strong>
-            <span id="calendarStatus">Fetching events...</span>
+            <span id="calendarStatus" aria-live="polite">Fetching events...</span>
           </div>
           <div class="controls-popover">
             <button
@@ -54,7 +54,7 @@
           </div>
         </div>
 
-        <div id="calendar"></div>
+        <div id="calendar" role="region" aria-label="Event calendar grid"></div>
       </main>
     </div>
 
@@ -88,6 +88,6 @@
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-    <script src="/static/app.js?v=20260604-a11y-keyboard"></script>
+    <script src="/static/app.js?v=20260604-a11y-perceivable"></script>
   </body>
 </html>

@@ -23,21 +23,21 @@ CATEGORY_DEFINITIONS: Dict[str, CategoryConfig] = {
     ),
     "party": CategoryConfig(
         "Party / Club",
-        "#d94b3d",
+        "#b8382e",
         "#fff8f5",
         ("club", "party", "nightlife", "bar", "rave", "guestlist", "bottle service", "ladies night", "rooftop"),
         4,
     ),
     "sports": CategoryConfig(
         "Sports",
-        "#169b72",
+        "#02875e",
         "#f6fffc",
         ("football", "soccer", "rugby", "basketball", "marathon", "sports", "run"),
         8,
     ),
     "food": CategoryConfig(
         "Food & Dining",
-        "#d69418",
+        "#a36b00",
         "#fffaf0",
         ("brunch", "wine", "dining", "restaurant", "food", "tasting"),
         6,
@@ -51,7 +51,7 @@ CATEGORY_DEFINITIONS: Dict[str, CategoryConfig] = {
     ),
     "networking": CategoryConfig(
         "Networking / Business",
-        "#167e8f",
+        "#006f7d",
         "#f3feff",
         ("networking", "startup", "summit", "conference", "business"),
         5,
