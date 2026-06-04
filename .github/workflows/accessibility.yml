@@ -50,7 +50,8 @@ jobs:
           npx --yes pa11y@9.1.1 http://127.0.0.1:5050/ \
             --level error \
             --threshold 0 \
-            --runner htmlcs
+            --runner htmlcs \
+            --wait 1500
 
       - name: Show Flask log on failure
         if: failure()
