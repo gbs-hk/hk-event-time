@@ -204,6 +204,8 @@ az webapp log tail --name hk-event-time --resource-group hk-event-time
 
 ## Architecture
 
+For a quiz-friendly overview, see [docs/mental-model.md](docs/mental-model.md).
+
 ```mermaid
 flowchart LR
   Sources["Event websites and APIs"] --> Scrapers["Dedicated and generic scrapers"]
