@@ -1,0 +1,57 @@
+name: Accessibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: accessibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pa11y:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Start local Flask app
+        env:
+          DATABASE_URL: sqlite:///events.db
+          FLASK_ENV: production
+          PORT: "5050"
+          SCRAPE_INCLUDE_SAMPLE: "1"
+        run: |
+          python run.py > flask-a11y.log 2>&1 &
+          echo "$!" > flask-a11y.pid
+          curl --fail --show-error --silent --retry 20 --retry-delay 1 --retry-connrefused --max-time 10 \
+            http://127.0.0.1:5050/ > /dev/null
+
+      - name: Run pa11y
+        run: |
+          npx --yes pa11y http://127.0.0.1:5050/ \
+            --level error \
+            --threshold 0 \
+            --ignore "WCAG2AA.Principle1.Guideline1_3.1_3_1.F92,ARIA4"
+
+      - name: Show Flask log on failure
+        if: failure()
+        run: cat flask-a11y.log || true

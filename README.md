@@ -207,6 +207,7 @@ az webapp log tail --name hk-event-time --resource-group hk-event-time
 For a quiz-friendly overview, see [docs/mental-model.md](docs/mental-model.md). For active recall cards, see [docs/quiz-prep.md](docs/quiz-prep.md).
 
 Accessibility audit notes live in [docs/a11y-audit.md](docs/a11y-audit.md).
+Automated accessibility check instructions live in [docs/a11y.md](docs/a11y.md).
 
 ```mermaid
 flowchart LR
