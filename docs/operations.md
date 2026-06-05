@@ -307,6 +307,37 @@ Inspect logs for scheduler or scraper errors (teachers: log tail; students: Appl
 az webapp log tail --name hk-event-time --resource-group hk-event-time
 ```
 
+Structured scrape completion logs include:
+
+- `event`: `scrape.run.finished`
+- `scrape.events_persisted`: events inserted or updated in that run
+- `failed_sources`: source count that raised errors
+- `empty_sources`: source count that returned no usable events
+- `sources_total`: configured source count for the run
+- `duration_ms`: run duration
+- `success`: whether all sources completed without exceptions
+
+Application Insights / Log Analytics KQL for recent scrape outcomes:
+
+```kusto
+traces
+| where message has "scrape.run.finished"
+| extend payload = parse_json(extract(@"\{.*\}", 0, message))
+| project timestamp,
+          events_persisted = toint(payload["scrape.events_persisted"]),
+          failed_sources = toint(payload.failed_sources),
+          empty_sources = toint(payload.empty_sources),
+          sources_total = toint(payload.sources_total),
+          duration_ms = toint(payload.duration_ms),
+          success = tostring(payload.success)
+| order by timestamp desc
+```
+
+Recommended alerts:
+
+- No successful scrape in 36h: alert when the KQL above filtered to `success == "true"` has zero rows in the last 36 hours.
+- Zero events for 2 consecutive runs: alert when the two most recent `scrape.run.finished` rows both have `events_persisted == 0`.
+
 ### Recovery
 
 - Run a manual scrape.
