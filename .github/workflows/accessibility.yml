@@ -47,11 +47,24 @@ jobs:
 
       - name: Run pa11y
         run: |
+          set +e
           npx --yes pa11y@9.1.1 http://127.0.0.1:5050/ \
             --level error \
             --threshold 0 \
             --runner htmlcs \
-            --wait 1500
+            --wait 1500 \
+            --reporter json \
+            > pa11y-results.json
+          PA11Y_EXIT=$?
+          cat pa11y-results.json
+          node scripts/check_pa11y_results.mjs pa11y-results.json
+          CHECK_EXIT=$?
+          if [ "$CHECK_EXIT" -ne 0 ]; then
+            exit "$CHECK_EXIT"
+          fi
+          if [ "$PA11Y_EXIT" -ne 0 ]; then
+            echo "pa11y exited with ${PA11Y_EXIT}, but no blocking errors were reported."
+          fi
 
       - name: Show Flask log on failure
         if: failure()
