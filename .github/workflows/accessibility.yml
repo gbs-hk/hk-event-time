@@ -49,6 +49,7 @@ jobs:
         run: |
           set +e
           npx --yes pa11y@9.1.1 http://127.0.0.1:5050/ \
+            --config pa11y.json \
             --level error \
             --threshold 0 \
             --runner htmlcs \
