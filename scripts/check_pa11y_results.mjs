@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 const resultsPath = process.argv[2] || "pa11y-results.json";
+const stderrPath = process.argv[3] || "pa11y-stderr.txt";
 
 function escapeAnnotation(value) {
   return String(value)
@@ -13,7 +14,9 @@ let issues;
 try {
   issues = JSON.parse(fs.readFileSync(resultsPath, "utf8"));
 } catch (error) {
-  console.error(`::error title=pa11y output::Could not parse ${resultsPath}: ${escapeAnnotation(error.message)}`);
+  const stderr = fs.existsSync(stderrPath) ? fs.readFileSync(stderrPath, "utf8").trim() : "";
+  const detail = stderr ? `${error.message}. pa11y stderr: ${stderr}` : error.message;
+  console.error(`::error title=pa11y output::Could not parse ${resultsPath}: ${escapeAnnotation(detail)}`);
   process.exit(1);
 }
 

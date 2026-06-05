@@ -54,10 +54,11 @@ jobs:
             --runner htmlcs \
             --wait 1500 \
             --reporter json \
-            > pa11y-results.json
+            > pa11y-results.json 2> pa11y-stderr.txt
           PA11Y_EXIT=$?
           cat pa11y-results.json
-          node scripts/check_pa11y_results.mjs pa11y-results.json
+          cat pa11y-stderr.txt
+          node scripts/check_pa11y_results.mjs pa11y-results.json pa11y-stderr.txt
           CHECK_EXIT=$?
           if [ "$CHECK_EXIT" -ne 0 ]; then
             exit "$CHECK_EXIT"
