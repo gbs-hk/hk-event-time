@@ -208,6 +208,7 @@ For a quiz-friendly overview, see [docs/mental-model.md](docs/mental-model.md). 
 
 Accessibility audit notes live in [docs/a11y-audit.md](docs/a11y-audit.md).
 Automated accessibility check instructions live in [docs/a11y.md](docs/a11y.md).
+Analytics dashboard queries and the current product decision live in [docs/analytics.md](docs/analytics.md).
 
 ```mermaid
 flowchart LR

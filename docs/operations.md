@@ -10,7 +10,7 @@ This runbook explains how to diagnose and recover common production issues for H
 - Azure App Service: `hk-event-time`
 - Azure resource group: `hk-event-time`
 - Alerting dashboard (Epic 2): TODO: add link when the team has configured Azure Monitor, UptimeRobot, Better Stack, or another alerting tool.
-- Analytics dashboard (Epic 1): TODO: add link when user analytics are implemented.
+- Analytics dashboard (Epic 1): [analytics workbook queries and product decision](analytics.md).
 
 ## Required Access
 

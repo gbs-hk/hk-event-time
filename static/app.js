@@ -69,6 +69,55 @@ let latestEventsByDate = new Map();
 let activeSearchTerm = "";
 let eventDialogReturnFocus = null;
 let dayDialogReturnFocus = null;
+let lastTrackedSearchTerm = "";
+
+const analyticsSessionId = getAnalyticsSessionId();
+
+function getAnalyticsSessionId() {
+  const storageKey = "hket.analytics.session";
+  try {
+    const existing = sessionStorage.getItem(storageKey);
+    if (existing) return existing;
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const generated = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    sessionStorage.setItem(storageKey, generated);
+    return generated;
+  } catch (error) {
+    return `fallback-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+function trackAnalyticsEvent(eventName, properties = {}) {
+  const payload = JSON.stringify({
+    event_name: eventName,
+    session_id: analyticsSessionId,
+    route: window.location.pathname || "/",
+    properties,
+  });
+  const endpoint = "/api/analytics/events";
+
+  if (navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: "application/json" });
+    if (navigator.sendBeacon(endpoint, blob)) return;
+  }
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function trackCalendarResults(viewType, resultCount) {
+  trackAnalyticsEvent("HKET.calendar.results_loaded", {
+    view_type: viewType,
+    result_count: resultCount,
+    category_count: activeCategories.size,
+    has_query: activeSearchTerm.length > 0,
+  });
+}
 
 function getFocusableElements(container) {
   return Array.from(
@@ -148,6 +197,10 @@ function renderCategoryFilters() {
         activeCategories.delete(category.slug);
       }
       label.classList.toggle("is-active", checkbox.checked);
+      trackAnalyticsEvent("HKET.category_filter.changed", {
+        category_count: activeCategories.size,
+        selected_all: activeCategories.size === categories.length,
+      });
       calendar.refetchEvents();
     });
 
@@ -214,6 +267,10 @@ function applyClientEventFilters(events) {
 function updateCategorySelection(selectAll) {
   activeCategories = new Set(selectAll ? categories.map((category) => category.slug) : []);
   renderCategoryFilters();
+  trackAnalyticsEvent("HKET.category_filter.changed", {
+    category_count: activeCategories.size,
+    selected_all: selectAll,
+  });
   calendar.refetchEvents();
 }
 
@@ -361,6 +418,9 @@ function formatEventTimeRange(event) {
 
 function openDayEvents(dateKey, events) {
   dayDialogReturnFocus = document.activeElement;
+  trackAnalyticsEvent("HKET.day_events.opened", {
+    result_count: events.length,
+  });
   const grouped = groupEventsByCategory(events);
   dayTitle.textContent = dayTitleFormatter.format(dateFromDateKey(dateKey));
   daySubtitle.textContent = `${events.length} event${events.length === 1 ? "" : "s"} grouped by category`;
@@ -599,6 +659,10 @@ function formatEventMeta(event) {
 function showEventDetails(event) {
   eventDialogReturnFocus = document.activeElement;
   const props = event.extendedProps;
+  trackAnalyticsEvent("HKET.event_details.opened", {
+    event_category: event.category || props.category || "unknown",
+    event_source: props.source_name || "unknown",
+  });
 
   eventTitle.textContent = event.title;
   eventMeta.textContent = formatEventMeta(event);
@@ -650,12 +714,24 @@ controlsMenu.addEventListener("click", (event) => {
 
 eventSearchInput.addEventListener("input", () => {
   activeSearchTerm = normalizeSearchText(eventSearchInput.value);
+  if (activeSearchTerm !== lastTrackedSearchTerm) {
+    lastTrackedSearchTerm = activeSearchTerm;
+    trackAnalyticsEvent("HKET.search.changed", {
+      has_query: activeSearchTerm.length > 0,
+      search_length: activeSearchTerm.length,
+    });
+  }
   calendar.refetchEvents();
 });
 
 clearSearchButton.addEventListener("click", () => {
   eventSearchInput.value = "";
   activeSearchTerm = "";
+  lastTrackedSearchTerm = "";
+  trackAnalyticsEvent("HKET.search.changed", {
+    has_query: false,
+    search_length: 0,
+  });
   calendar.refetchEvents();
 });
 
@@ -668,6 +744,9 @@ clearCategoriesButton.addEventListener("click", () => {
 });
 
 scrapeButton.addEventListener("click", async () => {
+  trackAnalyticsEvent("HKET.scrape_refresh.clicked", {
+    source: "menu",
+  });
   scrapeButton.disabled = true;
   scrapeButton.textContent = "Refreshing...";
   updateCalendarStatus("Refreshing source listings...");
@@ -755,6 +834,9 @@ calendar = new FullCalendar.Calendar(calendarEl, {
     clearMonthMarkers();
     updateViewSummary();
     updateCalendarStatus("Loading events for this view...");
+    trackAnalyticsEvent("HKET.calendar.view_changed", {
+      view_type: calendar.view.type,
+    });
     requestAnimationFrame(repairCalendarPresentationRoles);
   },
   eventSources: [
@@ -773,6 +855,7 @@ calendar = new FullCalendar.Calendar(calendarEl, {
           const viewType = getCalendarViewType(fetchInfo);
           const events = viewType === "dayGridMonth" ? [] : filteredEvents;
           successCallback(events);
+          trackCalendarResults(viewType, filteredEvents.length);
           if (viewType === "dayGridMonth") {
             queueMonthMarkerPaint(filteredEvents);
           }
@@ -785,6 +868,9 @@ calendar = new FullCalendar.Calendar(calendarEl, {
           }
         } catch (error) {
           updateCalendarStatus("Could not load events right now.");
+          trackAnalyticsEvent("HKET.api_events.failed", {
+            view_type: getCalendarViewType(fetchInfo),
+          });
           failureCallback(error);
         }
       },
@@ -816,6 +902,12 @@ calendar = new FullCalendar.Calendar(calendarEl, {
 });
 
 (async () => {
+  trackAnalyticsEvent("HKET.session.started", {
+    route: window.location.pathname || "/",
+  });
+  trackAnalyticsEvent("HKET.route.viewed", {
+    route: window.location.pathname || "/",
+  });
   await loadCategories();
   calendar.render();
   repairCalendarPresentationRoles();
