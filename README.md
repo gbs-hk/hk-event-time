@@ -200,7 +200,7 @@ az webapp config show --name hk-event-time --resource-group hk-event-time
 az webapp log tail --name hk-event-time --resource-group hk-event-time
 ```
 
-**Students** (portal, DevOps, GitHub access): [docs/student-entitlements.md](docs/student-entitlements.md), [docs/student-azure-access.md](docs/student-azure-access.md)
+**Students** (portal, DevOps, GitHub access): [docs/student-entitlements.md](docs/student-entitlements.md), [docs/student-azure-access.md](docs/student-azure-access.md). End-of-project contribution ranking: [docs/student-contribution-ranking.md](docs/student-contribution-ranking.md).
 
 ## Architecture
 
