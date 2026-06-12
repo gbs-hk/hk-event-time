@@ -810,6 +810,14 @@ dialog::backdrop {
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.24);
 }
 
+#eventTitle {
+  margin: 0 0 12px;
+  color: #ffffff;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  line-height: 1.16;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.24);
+}
+
 #eventMeta {
   width: fit-content;
   max-width: 100%;
@@ -912,6 +920,12 @@ dialog::backdrop {
 }
 
 .day-sheet h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  line-height: 1.15;
+}
+
+#dayTitle {
   margin: 0;
   font-size: 1.8rem;
   line-height: 1.15;

@@ -63,31 +63,31 @@
       </main>
     </div>
 
-    <dialog id="eventDialog">
-      <article class="dialog-card">
-        <h2 id="eventTitle"></h2>
-        <p id="eventMeta"></p>
-        <p id="eventDescription"></p>
-        <div class="links">
-          <a id="mapLink" rel="noopener">Open Map</a>
-          <a id="ticketLink" rel="noopener">Tickets / Registration</a>
-          <a id="discountLink" rel="noopener">Discount Offer</a>
-          <a id="calendarLink" download="event.ics">Add to Calendar</a>
-        </div>
-        <button id="closeDialog" class="ghost">Close</button>
-      </article>
-    </dialog>
+        <dialog id="eventDialog">
+          <article class="dialog-card">
+            <div id="eventTitle"></div>
+            <p id="eventMeta"></p>
+            <p id="eventDescription"></p>
+            <div class="links">
+              <a id="mapLink" rel="noopener">Open Map</a>
+              <a id="ticketLink" rel="noopener">Tickets / Registration</a>
+              <a id="discountLink" rel="noopener">Discount Offer</a>
+              <a id="calendarLink" download="event.ics">Add to Calendar</a>
+            </div>
+            <button id="closeDialog" class="ghost">Close</button>
+          </article>
+        </dialog>
 
-    <dialog id="dayDialog" class="day-dialog">
-      <article class="day-sheet">
-        <header class="day-sheet-header">
-          <div>
-            <p class="eyebrow">Selected Day</p>
-            <h2 id="dayTitle"></h2>
-            <p id="daySubtitle"></p>
-          </div>
-          <button id="closeDayDialog" class="ghost">Close</button>
-        </header>
+        <dialog id="dayDialog" class="day-dialog">
+          <article class="day-sheet">
+            <header class="day-sheet-header">
+              <div>
+                <p class="eyebrow">Selected Day</p>
+                <div id="dayTitle"></div>
+                <p id="daySubtitle"></p>
+              </div>
+              <button id="closeDayDialog" class="ghost">Close</button>
+            </header>
         <div id="dayEventGroups" class="day-event-groups"></div>
       </article>
     </dialog>
