@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import threading
 from datetime import datetime, timedelta
+import json
+import logging
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy import delete, func, select
@@ -13,6 +16,8 @@ from .models import Event
 from .scrapers.base import ScrapedEvent
 from .scrapers.html_event_scraper import is_low_quality_title, make_semantic_key
 from .scrapers.sources import build_scrapers
+
+logger = logging.getLogger(__name__)
 
 # Serializes scrape runs so the scheduler and a manual refresh never
 # clobber each other. `try_acquire_scrape_lock` lets callers (e.g. the
@@ -109,6 +114,13 @@ def run_scrape_detailed(
 
 
 def _run_scrape_inner(replace: bool) -> dict[str, Any]:
+    started_at_utc = datetime.utcnow()
+    started_at = perf_counter()
+    logger.info(
+        "scrape.run.started %s",
+        json.dumps({"event": "scrape.run.started", "started_at_utc": started_at_utc.isoformat()}),
+    )
+
     inserted_or_updated = 0
     failed_sources = 0
     empty_sources = 0
@@ -180,7 +192,7 @@ def _run_scrape_inner(replace: bool) -> dict[str, Any]:
 
         sources.append(source_info)
 
-    return {
+    report = {
         "processed": inserted_or_updated,
         "failed_sources": failed_sources,
         "empty_sources": empty_sources,
@@ -189,6 +201,27 @@ def _run_scrape_inner(replace: bool) -> dict[str, Any]:
         "replace": replace,
         "skipped": False,
     }
+    report["started_at_utc"] = started_at_utc.isoformat()
+    report["finished_at_utc"] = datetime.utcnow().isoformat()
+    report["duration_ms"] = round((perf_counter() - started_at) * 1000)
+    report["success"] = failed_sources == 0
+
+    logger.info(
+        "scrape.run.finished %s",
+        json.dumps(
+            {
+                "event": "scrape.run.finished",
+                "scrape.events_persisted": inserted_or_updated,
+                "failed_sources": failed_sources,
+                "empty_sources": empty_sources,
+                "sources_total": sources_total,
+                "duration_ms": report["duration_ms"],
+                "success": report["success"],
+            },
+            sort_keys=True,
+        ),
+    )
+    return report
 
 
 def _delete_stale_events_for_source(source_name: str, keep_external_ids: set[str]) -> int:
