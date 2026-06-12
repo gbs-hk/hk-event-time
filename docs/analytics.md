@@ -4,6 +4,12 @@ This page documents the student analytics dashboard for Azure DevOps item `#21`.
 
 The app emits privacy-minimal analytics events through `POST /api/analytics/events`. Frontend events use the `HKET.*` namespace and are logged as structured `analytics.event` traces. The payload includes an anonymous browser-session id, the route path, and allowlisted properties only. It does not send names, emails, raw search text, ticket URLs, map URLs, cookies, or secrets.
 
+## Open Dashboard
+
+Open the shared Azure Workbook: [HK Event Time Analytics Dashboard](https://portal.azure.com/#@acuhlmanngmail.onmicrosoft.com/resource/subscriptions/3a240a56-b0ac-4a39-91ad-03b8059cf63b/resourceGroups/hk-event-time/providers/microsoft.insights/workbooks/21b7a9d8-8e6b-4c5e-9c2e-0f4d7a1b8c21/workbook).
+
+If the deep link does not open directly, go to Azure Portal -> Application Insights `appinsights-hk-event-time` -> Workbooks -> `HK Event Time Analytics Dashboard`.
+
 ## Event Names
 
 | Event | Purpose | Fields |
@@ -21,7 +27,7 @@ The app emits privacy-minimal analytics events through `POST /api/analytics/even
 
 ## Workbook Tiles
 
-Create an Azure Application Insights workbook or pinned dashboard for the last 7 days. Use the query time range `Last 7 days` and the KQL below.
+The shared workbook already contains the required 7-day tiles. The KQL below documents each tile so the dashboard can be audited or recreated if needed.
 
 ### Sessions
 
