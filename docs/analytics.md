@@ -49,8 +49,8 @@ traces
 | where message has "analytics.event"
 | extend payload = parse_json(extract(@"\{.*\}", 0, message))
 | where tostring(payload.event_name) == "HKET.route.viewed"
-| summarize views = count(), sessions = dcount(tostring(payload.session_id)) by route = tostring(payload.route)
-| order by views desc
+| summarize route_views = count(), sessions = dcount(tostring(payload.session_id)) by route = tostring(payload.route)
+| order by route_views desc
 ```
 
 ### `/api/events` Error Rate
