@@ -2,7 +2,7 @@
 
 This page documents the student analytics dashboard for Azure DevOps item `#21`.
 
-The app emits privacy-minimal analytics events through `POST /api/analytics/events`. Frontend events use the `HKET.*` namespace and are logged as structured `analytics.event` traces. The payload includes an anonymous browser-session id, the route path, and allowlisted properties only. It does not send names, emails, raw search text, ticket URLs, map URLs, cookies, or secrets.
+The app emits privacy-minimal analytics events through `POST /api/analytics/events`. Frontend events use the `HKET.*` namespace and are sent to Application Insights as custom events in `AppEvents`. The payload includes an anonymous browser-session id, the route path, and allowlisted properties only. It does not send names, emails, raw search text, ticket URLs, map URLs, cookies, or secrets.
 
 ## Open Dashboard
 
@@ -32,24 +32,20 @@ The shared workbook already contains the required 7-day tiles. The KQL below doc
 ### Sessions
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
-| where tostring(payload.event_name) == "HKET.session.started"
-| summarize sessions = dcount(tostring(payload.session_id)) by bin(timestamp, 1d)
-| order by timestamp asc
+AppEvents
+| where TimeGenerated > ago(7d)
+| where Name == "HKET.session.started"
+| summarize sessions = dcount(tostring(Properties.session_id)) by bin(TimeGenerated, 1d)
+| order by TimeGenerated asc
 ```
 
 ### Top Routes
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
-| where tostring(payload.event_name) == "HKET.route.viewed"
-| summarize route_views = count(), sessions = dcount(tostring(payload.session_id)) by route = tostring(payload.route)
+AppEvents
+| where TimeGenerated > ago(7d)
+| where Name == "HKET.route.viewed"
+| summarize route_views = count(), sessions = dcount(tostring(Properties.session_id)) by route = tostring(Properties.route)
 | order by route_views desc
 ```
 
@@ -71,13 +67,11 @@ requests
 If request collection is unavailable, use the client-side failure signal as a fallback:
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
-| where tostring(payload.event_name) == "HKET.api_events.failed"
-| summarize client_failures = count() by bin(timestamp, 1h)
-| order by timestamp asc
+AppEvents
+| where TimeGenerated > ago(7d)
+| where Name == "HKET.api_events.failed"
+| summarize client_failures = count() by bin(TimeGenerated, 1h)
+| order by TimeGenerated asc
 ```
 
 If `/api/events` error rate spikes, follow the site/API diagnosis steps in [operations.md](operations.md#site-down).
@@ -85,28 +79,24 @@ If `/api/events` error rate spikes, follow the site/API diagnosis steps in [oper
 ### `HKET.*` Events
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
-| where tostring(payload.event_name) startswith "HKET."
+AppEvents
+| where TimeGenerated > ago(7d)
+| where Name startswith "HKET."
 | summarize events = count(),
-            sessions = dcount(tostring(payload.session_id))
-          by event_name = tostring(payload.event_name)
+            sessions = dcount(tostring(Properties.session_id))
+          by event_name = Name
 | order by events desc
 ```
 
 ### Event Detail Interest
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
-| where tostring(payload.event_name) == "HKET.event_details.opened"
+AppEvents
+| where TimeGenerated > ago(7d)
+| where Name == "HKET.event_details.opened"
 | summarize opens = count()
-          by category = tostring(payload.properties.event_category),
-             source = tostring(payload.properties.event_source)
+          by category = tostring(Properties.event_category),
+             source = tostring(Properties.event_source)
 | order by opens desc
 ```
 

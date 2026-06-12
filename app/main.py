@@ -1,18 +1,40 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
+import logging
+import re
 from zoneinfo import ZoneInfo
 
 from dateutil import parser as dt_parser
 from flask import Flask, jsonify, render_template, request
 
+from .analytics import track_event
 from .categories import categories_for_api
 from .config import Config
-from .database import Base, engine
+from .database import Base, check_database_ready, engine
 from .scheduler import start_scheduler
 from .services import get_color_map, query_events, run_scrape, run_scrape_detailed, source_event_counts_upcoming
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+ANALYTICS_EVENT_PATTERN = re.compile(r"^HKET\.[a-z0-9_.-]{1,80}$")
+ANALYTICS_SESSION_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
+ANALYTICS_ALLOWED_PROPERTIES = {
+    "category_count",
+    "event_category",
+    "event_source",
+    "has_query",
+    "result_count",
+    "route",
+    "search_length",
+    "selected_all",
+    "source",
+    "view_type",
+}
 
 
 def create_app() -> Flask:
@@ -32,7 +54,10 @@ def create_app() -> Flask:
 
     @app.get("/health")
     def health():
-        return jsonify({"status": "ok"})
+        database = check_database_ready()
+        status = "ok" if database["status"] == "ok" else "down"
+        status_code = 200 if status == "ok" else 503
+        return jsonify({"status": status, "database": database}), status_code
 
     @app.get("/api/categories")
     def categories():
@@ -79,6 +104,35 @@ def create_app() -> Flask:
         ]
         return jsonify(payload)
 
+    @app.post("/api/analytics/events")
+    def analytics_event():
+        payload = request.get_json(silent=True) or {}
+        event_name = str(payload.get("event_name", "")).strip()
+        session_id = str(payload.get("session_id", "")).strip()
+        route = normalize_analytics_route(payload.get("route", request.path))
+
+        if not ANALYTICS_EVENT_PATTERN.fullmatch(event_name):
+            return jsonify({"error": "event_name must start with HKET. and use safe characters"}), 400
+        if not ANALYTICS_SESSION_PATTERN.fullmatch(session_id):
+            return jsonify({"error": "session_id is required"}), 400
+
+        event_payload = {
+            "event_name": event_name,
+            "session_id": session_id,
+            "route": route,
+            "properties": sanitize_analytics_properties(payload.get("properties", {})),
+        }
+        logger.info("analytics.event %s", json.dumps(event_payload, sort_keys=True))
+        track_event(
+            event_name,
+            {
+                "session_id": session_id,
+                "route": route,
+                **event_payload["properties"],
+            },
+        )
+        return jsonify({"accepted": True}), 202
+
     @app.post("/api/scrape-now")
     def scrape_now():
         # Manual refresh: replace stale per-source events so the UI reflects
@@ -104,6 +158,32 @@ def create_app() -> Flask:
         return jsonify(payload)
 
     return app
+
+
+def normalize_analytics_route(value: object) -> str:
+    route = str(value or "/").split("?", 1)[0].strip() or "/"
+    if not route.startswith("/"):
+        route = "/"
+    return route[:120]
+
+
+def sanitize_analytics_properties(properties: object) -> dict[str, bool | int | str]:
+    if not isinstance(properties, dict):
+        return {}
+
+    sanitized: dict[str, bool | int | str] = {}
+    for key, value in properties.items():
+        key = str(key)
+        if key not in ANALYTICS_ALLOWED_PROPERTIES:
+            continue
+        if isinstance(value, bool):
+            sanitized[key] = value
+        elif isinstance(value, int):
+            sanitized[key] = value
+        elif isinstance(value, str):
+            sanitized[key] = value[:120]
+    return sanitized
+
 
 def parse_request_datetime_to_utc(value: str) -> datetime:
     parsed = dt_parser.parse(value)
