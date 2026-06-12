@@ -16,7 +16,9 @@ from .scheduler import start_scheduler
 from .services import get_color_map, query_events, run_scrape, run_scrape_detailed, source_event_counts_upcoming
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 ANALYTICS_EVENT_PATTERN = re.compile(r"^HKET\.[a-z0-9_.-]{1,80}$")
 ANALYTICS_SESSION_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,80}$")

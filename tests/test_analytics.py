@@ -6,6 +6,9 @@ from app.main import create_app
 
 
 class AnalyticsTests(unittest.TestCase):
+    def test_analytics_logger_allows_info_events(self):
+        self.assertTrue(logging.getLogger("app.main").isEnabledFor(logging.INFO))
+
     def test_accepts_hket_event_and_logs_sanitized_payload(self):
         app = create_app()
 
