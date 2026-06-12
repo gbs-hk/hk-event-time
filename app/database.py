@@ -26,6 +26,9 @@ def check_database_ready() -> dict[str, str]:
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-        return {"status": "ok"}
     except Exception as exc:
-        return {"status": "down", "error": exc.__class__.__name__}
+        return {
+            "status": "down",
+            "error": exc.__class__.__name__,
+        }
+    return {"status": "ok"}

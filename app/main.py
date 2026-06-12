@@ -10,7 +10,6 @@ from zoneinfo import ZoneInfo
 from dateutil import parser as dt_parser
 from flask import Flask, jsonify, render_template, request
 
-from .analytics import track_event
 from .categories import categories_for_api
 from .config import Config
 from .database import Base, check_database_ready, engine
@@ -135,14 +134,6 @@ def create_app() -> Flask:
             "properties": sanitize_analytics_properties(payload.get("properties", {})),
         }
         logger.info("analytics.event %s", json.dumps(event_payload, sort_keys=True))
-        track_event(
-            event_name,
-            {
-                "session_id": session_id,
-                "route": route,
-                **event_payload["properties"],
-            },
-        )
         return jsonify({"accepted": True}), 202
 
     @app.post("/api/scrape-now")
