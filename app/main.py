@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import logging
+import os
 import re
 from zoneinfo import ZoneInfo
 
@@ -46,7 +47,18 @@ def create_app() -> Flask:
     )
 
     Base.metadata.create_all(bind=engine)
-    start_scheduler()
+    
+    # Only start the scheduler in specific conditions to avoid issues with Gunicorn workers
+    # In production with Gunicorn, only the first worker should run the scheduler
+    if os.environ.get("FLASK_ENV") == "production":
+        # Check if we're in the main Gunicorn process (not a worker)
+        # This avoids multiple schedulers running in different workers
+        if os.environ.get("GUNICORN_WORKER_ID") is None or os.environ.get("GUNICORN_WORKER_ID") == "1":
+            start_scheduler()
+    else:
+        # For local development (non-production), start scheduler normally if in the reloader child process
+        if os.environ.get("FLASK_ENV") != "production" and os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+            start_scheduler()
 
     @app.get("/")
     def index():
