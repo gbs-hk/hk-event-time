@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "azureDevOps": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@tiberriver256/mcp-server-azure-devops@0.1.45"],
+      "env": {
+        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/gbs-hk",
+        "AZURE_DEVOPS_AUTH_METHOD": "azure-cli",
+        "AZURE_DEVOPS_DEFAULT_PROJECT": "hk-event-time"
+      }
+    }
+  }
+}

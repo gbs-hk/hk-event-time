@@ -1,0 +1,16 @@
+# OpenAI Codex MCP (stdio). Primary user config: ~/.codex/config.toml
+# Project file is used when Codex treats this repo as a trusted project.
+# Docs: https://developers.openai.com/codex/mcp
+#       https://openai-codex.mintlify.app/configuration/mcp-servers
+#
+# Merge these tables into your global config if Codex does not load this file.
+
+[mcp_servers.azure_devops]
+command = "npx"
+args = ["-y", "@tiberriver256/mcp-server-azure-devops@0.1.45"]
+enabled = true
+
+[mcp_servers.azure_devops.env]
+AZURE_DEVOPS_ORG_URL = "https://dev.azure.com/gbs-hk"
+AZURE_DEVOPS_AUTH_METHOD = "azure-cli"
+AZURE_DEVOPS_DEFAULT_PROJECT = "hk-event-time"

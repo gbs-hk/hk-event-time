@@ -1,0 +1,18 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  // Kilo Code project MCP (stdio). Global file: ~/.config/kilo/kilo.jsonc
+  // Docs: https://kilo.ai/docs/automate/mcp/using-in-kilo-code
+  "mcp": {
+    "azureDevOps": {
+      "type": "local",
+      "command": ["npx", "-y", "@tiberriver256/mcp-server-azure-devops@0.1.45"],
+      "environment": {
+        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/gbs-hk",
+        "AZURE_DEVOPS_AUTH_METHOD": "azure-cli",
+        "AZURE_DEVOPS_DEFAULT_PROJECT": "hk-event-time"
+      },
+      "enabled": true,
+      "timeout": 60000
+    }
+  }
+}

@@ -1,0 +1,114 @@
+name: Build and deploy Python app to Azure Web App - hk-event-time
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: azure-deploy-main
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_WEBAPP_NAME: hk-event-time
+  AZURE_WEBAPP_PACKAGE_PATH: deploy.zip
+  AZURE_RESOURCE_GROUP: hk-event-time
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Assemble deploy artifact
+        run: |
+          rm -f deploy.zip
+          rm -rf .python_packages
+          python -m pip install --upgrade pip
+          python -m pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+          zip -qr deploy.zip app templates static run.py wsgi.py startup.sh requirements.txt runtime.txt .python_packages -x "*/__pycache__/*" "*.pyc"
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BFC869CB135A43B792809933289B5DB6 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
+
+      - name: Configure Azure app settings before deploy
+        run: |
+          az webapp config appsettings set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --settings \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+              ENABLE_ORYX_BUILD=false \
+              DATABASE_URL=sqlite:////home/data/events.db \
+              FLASK_ENV=production \
+              USE_RELOADER=0 \
+              PORT=8000 \
+              WEBSITES_PORT=8000 \
+              WEBSITE_WARMUP_PATH=/health \
+              WEBSITE_WARMUP_STATUSES=200 \
+              SCRAPE_SOURCE_MODE=lkf_nightlife \
+              SCRAPE_FOCUS_CATEGORIES=party,music
+
+      - name: Enable Azure filesystem logging
+        run: |
+          az webapp log config \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --application-logging filesystem \
+            --web-server-logging filesystem \
+            --level information
+
+      - name: Configure startup command before deploy
+        run: |
+          az webapp config set \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --linux-fx-version "PYTHON|3.10" \
+            --startup-file "bash /home/site/wwwroot/startup.sh"
+
+      - name: Deploy prepared artifact to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Restart Azure Web App
+        run: |
+          az webapp restart \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}"
+
+      - name: Wait for app health
+        run: |
+          curl --fail --show-error --silent --retry 18 --retry-delay 10 --retry-connrefused --max-time 30 \
+            "https://hk-event-time-chc0gye3c5byckcq.southeastasia-01.azurewebsites.net/health"
+
+      - name: Log in to Azure for diagnostics
+        if: failure()
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BFC869CB135A43B792809933289B5DB6 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_789568E06C504C2D96EC902D5C8BE96E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6B5E670E6A01432AAE0623C233C02FAF }}
+
+      - name: Show Azure logs on failure
+        if: failure()
+        run: |
+          timeout 90 az webapp log tail \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" || true

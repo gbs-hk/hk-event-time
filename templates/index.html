@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hong Kong Events Calendar</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css?v=20260522-spinner" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <main class="calendar-panel">
+        <div class="calendar-meta">
+          <div>
+            <p class="eyebrow">Hong Kong Events</p>
+            <strong id="viewRangeLabel">Loading...</strong>
+            <span id="calendarStatus">Fetching events...</span>
+          </div>
+          <div class="controls-popover">
+            <button
+              id="controlsToggle"
+              class="primary controls-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="controlsMenu"
+            >
+              Event Menu
+            </button>
+            <div id="controlsMenu" class="controls-menu" hidden>
+              <div class="menu-heading">
+                <span class="eyebrow">Controls</span>
+                <strong>Filter the calendar</strong>
+              </div>
+              <section class="menu-search" aria-label="Search events">
+                <label class="menu-label" for="eventSearch">Find Events</label>
+                <div class="menu-search-row">
+                  <input id="eventSearch" type="search" placeholder="Search name, venue, source..." autocomplete="off" />
+                  <button id="clearSearchButton" class="menu-small-button" type="button">Clear</button>
+                </div>
+              </section>
+              <section class="filter-bar" aria-label="Event category filters">
+                <span class="menu-label">Event Categories</span>
+                <div class="filter-actions">
+                  <button id="selectAllCategories" class="menu-small-button" type="button">All</button>
+                  <button id="clearCategories" class="menu-small-button" type="button">None</button>
+                </div>
+                <div id="categoryFilters" class="filters"></div>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <div id="calendar"></div>
+        <div id="scrapeOverlay" class="scrape-overlay" hidden aria-live="polite" aria-busy="true">
+          <div class="scrape-overlay-card">
+            <div class="scrape-spinner" role="status" aria-label="Refreshing events"></div>
+            <p id="scrapeOverlayText">Refreshing events from sources&hellip;</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="eventDialog">
+      <article class="dialog-card">
+        <h2 id="eventTitle"></h2>
+        <p id="eventMeta"></p>
+        <p id="eventDescription"></p>
+        <div class="links">
+          <a id="mapLink" rel="noopener">Open Map</a>
+          <a id="ticketLink" rel="noopener">Tickets / Registration</a>
+          <a id="discountLink" rel="noopener">Discount Offer</a>
+          <a id="calendarLink" download="event.ics">Add to Calendar</a>
+        </div>
+        <button id="closeDialog" class="ghost">Close</button>
+      </article>
+    </dialog>
+
+    <dialog id="dayDialog" class="day-dialog">
+      <article class="day-sheet">
+        <header class="day-sheet-header">
+          <div>
+            <p class="eyebrow">Selected Day</p>
+            <h2 id="dayTitle"></h2>
+            <p id="daySubtitle"></p>
+          </div>
+          <button id="closeDayDialog" class="ghost">Close</button>
+        </header>
+        <div id="dayEventGroups" class="day-event-groups"></div>
+      </article>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="/static/app.js?v=20260522-spinner"></script>
+  </body>
+</html>
