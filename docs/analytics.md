@@ -32,22 +32,22 @@ The shared workbook already contains the required 7-day tiles. The KQL below doc
 ### Sessions
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message has "analytics.event"
+| extend payload = parse_json(extract(@"\{.*\}", 0, Message))
 | where tostring(payload.event_name) == "HKET.session.started"
-| summarize sessions = dcount(tostring(payload.session_id)) by bin(timestamp, 1d)
-| order by timestamp asc
+| summarize sessions = dcount(tostring(payload.session_id)) by bin(TimeGenerated, 1d)
+| order by TimeGenerated asc
 ```
 
 ### Top Routes
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message has "analytics.event"
+| extend payload = parse_json(extract(@"\{.*\}", 0, Message))
 | where tostring(payload.event_name) == "HKET.route.viewed"
 | summarize route_views = count(), sessions = dcount(tostring(payload.session_id)) by route = tostring(payload.route)
 | order by route_views desc
@@ -55,29 +55,29 @@ traces
 
 ### `/api/events` Error Rate
 
-Use the `requests` table when Application Insights request collection is enabled:
+Use the `AppRequests` table when Application Insights request collection is enabled:
 
 ```kusto
-requests
-| where timestamp > ago(7d)
-| where name has "/api/events" or url has "/api/events"
+AppRequests
+| where TimeGenerated > ago(7d)
+| where Name has "/api/events" or Url has "/api/events"
 | summarize total = count(),
-            failed = countif(success == false or toint(resultCode) >= 500)
-          by bin(timestamp, 1h)
+            failed = countif(Success == false or toint(ResultCode) >= 500)
+          by bin(TimeGenerated, 1h)
 | extend error_rate = iff(total == 0, 0.0, todouble(failed) / todouble(total))
-| order by timestamp asc
+| order by TimeGenerated asc
 ```
 
 If request collection is unavailable, use the client-side failure signal as a fallback:
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message has "analytics.event"
+| extend payload = parse_json(extract(@"\{.*\}", 0, Message))
 | where tostring(payload.event_name) == "HKET.api_events.failed"
-| summarize client_failures = count() by bin(timestamp, 1h)
-| order by timestamp asc
+| summarize client_failures = count() by bin(TimeGenerated, 1h)
+| order by TimeGenerated asc
 ```
 
 If `/api/events` error rate spikes, follow the site/API diagnosis steps in [operations.md](operations.md#site-down).
@@ -85,10 +85,10 @@ If `/api/events` error rate spikes, follow the site/API diagnosis steps in [oper
 ### `HKET.*` Events
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message has "analytics.event"
+| extend payload = parse_json(extract(@"\{.*\}", 0, Message))
 | where tostring(payload.event_name) startswith "HKET."
 | summarize events = count(),
             sessions = dcount(tostring(payload.session_id))
@@ -99,10 +99,10 @@ traces
 ### Event Detail Interest
 
 ```kusto
-traces
-| where timestamp > ago(7d)
-| where message has "analytics.event"
-| extend payload = parse_json(extract(@"\{.*\}", 0, message))
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message has "analytics.event"
+| extend payload = parse_json(extract(@"\{.*\}", 0, Message))
 | where tostring(payload.event_name) == "HKET.event_details.opened"
 | summarize opens = count()
           by category = tostring(payload.properties.event_category),
